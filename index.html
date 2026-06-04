@@ -1,0 +1,2759 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Atelier PK — Store &amp; Admin</title>
+<style>
+  /* ============================================================
+     DESIGN TOKENS
+     ============================================================ */
+  :root {
+    /* Store palette — clean, premium, white + warm accent */
+    --store-bg: #ffffff;
+    --store-fg: #0f172a;
+    --store-muted: #64748b;
+    --store-line: #e5e7eb;
+    --store-card: #ffffff;
+    --store-accent: #d97706;        /* warm amber */
+    --store-accent-hover: #b45309;
+    --store-navy: #0f1d3a;          /* deep navy for headers */
+    --store-success: #15803d;
+    --store-danger: #b91c1c;
+
+    /* Admin palette — dark sidebar, light content */
+    --admin-bg: #f5f6f8;
+    --admin-sidebar: #0f1d3a;       /* deep navy */
+    --admin-sidebar-fg: #cbd5e1;
+    --admin-sidebar-active: #1e293b;
+    --admin-content: #ffffff;
+    --admin-fg: #0f172a;
+    --admin-muted: #64748b;
+    --admin-line: #e5e7eb;
+    --admin-accent: #2563eb;
+    --admin-accent-hover: #1d4ed8;
+
+    /* Status colors */
+    --st-received: #6b7280;
+    --st-processing: #d97706;
+    --st-shipped: #2563eb;
+    --st-delivered: #15803d;
+    --st-cancelled: #b91c1c;
+
+    /* Type & shape */
+    --r-sm: 6px;
+    --r-md: 10px;
+    --r-lg: 14px;
+    --r-xl: 20px;
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.06);
+    --shadow-md: 0 4px 14px rgba(15,23,42,.08);
+    --shadow-lg: 0 20px 50px rgba(15,23,42,.18);
+
+    --container: 1200px;
+    --header-h: 64px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--store-fg);
+    background: var(--store-bg);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  button { font: inherit; cursor: pointer; }
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; display: block; }
+  input, select, textarea { font: inherit; color: inherit; }
+
+  /* ============================================================
+     TOP-LEVEL APP TOGGLE
+     ============================================================ */
+  .app-toggle {
+    position: fixed;
+    top: 12px; right: 12px;
+    z-index: 1000;
+    display: inline-flex;
+    background: rgba(15,29,58,.92);
+    backdrop-filter: blur(8px);
+    border-radius: 999px;
+    padding: 4px;
+    box-shadow: var(--shadow-md);
+    transition: transform .15s ease;
+  }
+  .app-toggle:hover { transform: scale(1.04); }
+  .app-toggle button {
+    border: 0;
+    background: transparent;
+    color: #cbd5e1;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: .02em;
+    transition: all .15s ease;
+  }
+  .app-toggle button.active {
+    background: #fff;
+    color: var(--store-navy);
+  }
+  .app-toggle button:not(.active):hover { color: #fff; }
+
+  /* ============================================================
+     STORE LAYOUT
+     ============================================================ */
+  .store { display: block; }
+  .store.hidden { display: none; }
+
+  .container { max-width: var(--container); margin: 0 auto; padding: 0 20px; }
+
+  .store-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #fff;
+    border-bottom: 1px solid var(--store-line);
+    height: var(--header-h);
+    display: flex;
+    align-items: center;
+  }
+  .store-header .row {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  }
+  .logo {
+    font-family: "Georgia", serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: .02em;
+    color: var(--store-navy);
+  }
+  .logo span { color: var(--store-accent); }
+  .nav { display: flex; gap: 24px; }
+  .nav a {
+    color: var(--store-fg);
+    font-weight: 500;
+    font-size: 14px;
+    padding: 6px 0;
+    border-bottom: 2px solid transparent;
+    transition: border-color .15s ease;
+  }
+  .nav a:hover, .nav a.active { border-color: var(--store-accent); }
+
+  .header-actions { display: flex; align-items: center; gap: 12px; }
+  .cart-btn {
+    position: relative;
+    background: transparent;
+    border: 1px solid var(--store-line);
+    border-radius: 999px;
+    padding: 8px 14px 8px 12px;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-weight: 600; font-size: 14px;
+  }
+  .cart-btn:hover { border-color: var(--store-navy); }
+  .cart-badge {
+    background: var(--store-accent);
+    color: #fff;
+    border-radius: 999px;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .store-main { min-height: calc(100vh - var(--header-h) - 200px); }
+  .store-footer {
+    background: var(--store-navy);
+    color: #cbd5e1;
+    padding: 40px 0 20px;
+    margin-top: 60px;
+  }
+  .store-footer .grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 32px; }
+  .store-footer h4 { color: #fff; font-size: 14px; margin: 0 0 12px; letter-spacing: .04em; text-transform: uppercase; }
+  .store-footer a { display: block; padding: 4px 0; font-size: 14px; }
+  .store-footer a:hover { color: #fff; }
+  .store-footer .legal {
+    border-top: 1px solid rgba(255,255,255,.1);
+    margin-top: 28px; padding-top: 16px;
+    font-size: 12px; text-align: center; opacity: .7;
+  }
+
+  /* ============================================================
+     ADMIN LAYOUT
+     ============================================================ */
+  .admin { display: none; min-height: 100vh; }
+  .admin.hidden { display: none; }
+  .admin.active { display: grid; grid-template-columns: 240px 1fr; }
+
+  .admin-sidebar {
+    background: var(--admin-sidebar);
+    color: var(--admin-sidebar-fg);
+    padding: 20px 0;
+    position: sticky; top: 0; height: 100vh;
+    overflow-y: auto;
+  }
+  .admin-sidebar .logo {
+    color: #fff; padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,.08);
+    margin-bottom: 12px;
+  }
+  .admin-nav { display: flex; flex-direction: column; }
+  .admin-nav button {
+    background: transparent; border: 0;
+    color: var(--admin-sidebar-fg);
+    text-align: left;
+    padding: 10px 20px;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 14px; font-weight: 500;
+    border-left: 3px solid transparent;
+  }
+  .admin-nav button:hover { background: var(--admin-sidebar-active); color: #fff; }
+  .admin-nav button.active {
+    background: var(--admin-sidebar-active);
+    color: #fff;
+    border-left-color: var(--store-accent);
+  }
+  .admin-nav .icon { width: 18px; display: inline-block; text-align: center; }
+
+  .admin-topbar {
+    height: 60px;
+    background: #fff;
+    border-bottom: 1px solid var(--admin-line);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .admin-topbar h1 { font-size: 18px; margin: 0; }
+  .admin-topbar .who { font-size: 13px; color: var(--admin-muted); }
+  .admin-content { padding: 24px; }
+
+  /* ============================================================
+     SHARED UI — buttons, inputs, badges
+     ============================================================ */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 18px;
+    border-radius: var(--r-md);
+    border: 1px solid transparent;
+    font-weight: 600; font-size: 14px;
+    transition: all .15s ease;
+  }
+  .btn-primary { background: var(--store-navy); color: #fff; }
+  .btn-primary:hover { background: #06122a; }
+  .btn-accent { background: var(--store-accent); color: #fff; }
+  .btn-accent:hover { background: var(--store-accent-hover); }
+  .btn-ghost { background: transparent; color: var(--store-fg); border-color: var(--store-line); }
+  .btn-ghost:hover { border-color: var(--store-navy); }
+  .btn-danger { background: var(--store-danger); color: #fff; }
+  .btn-danger:hover { filter: brightness(.9); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-block { width: 100%; }
+
+  .input, .select, .textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--store-line);
+    border-radius: var(--r-md);
+    background: #fff;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .input:focus, .select:focus, .textarea:focus {
+    outline: none;
+    border-color: var(--store-navy);
+    box-shadow: 0 0 0 3px rgba(15,29,58,.08);
+  }
+  .label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 6px; color: #334155; }
+  .field { margin-bottom: 14px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+  }
+  .badge-received   { background: #e5e7eb; color: var(--st-received); }
+  .badge-processing { background: #fef3c7; color: var(--st-processing); }
+  .badge-shipped    { background: #dbeafe; color: var(--st-shipped); }
+  .badge-delivered  { background: #dcfce7; color: var(--st-delivered); }
+  .badge-cancelled  { background: #fee2e2; color: var(--st-cancelled); }
+
+  /* Toast container */
+  #toast-root {
+    position: fixed; right: 20px; bottom: 20px; z-index: 2000;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .toast {
+    background: var(--store-navy); color: #fff;
+    padding: 12px 16px; border-radius: var(--r-md);
+    box-shadow: var(--shadow-md);
+    font-size: 14px;
+    animation: toastIn .2s ease;
+    max-width: 320px;
+  }
+  .toast.success { background: var(--store-success); }
+  .toast.error { background: var(--store-danger); }
+  @keyframes toastIn { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(15,23,42,.55);
+    display: none; align-items: center; justify-content: center;
+    z-index: 1500; padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: var(--r-lg);
+    width: 100%; max-width: 720px; max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal-head, .modal-foot {
+    padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-head { border-bottom: 1px solid var(--store-line); }
+  .modal-head h3 { margin: 0; font-size: 18px; }
+  .modal-body { padding: 20px; }
+  .modal-foot { border-top: 1px solid var(--store-line); gap: 10px; justify-content: flex-end; }
+  .icon-x { background: transparent; border: 0; font-size: 22px; line-height: 1; color: var(--store-muted); }
+
+  /* Placeholder for views — to be expanded in later pieces */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ============================================================
+     STORE-SPECIFIC COMPONENTS
+     ============================================================ */
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, var(--store-navy) 0%, #1e2d54 100%);
+    color: #fff;
+    padding: 80px 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::after {
+    content: ''; position: absolute; right: -120px; top: -120px;
+    width: 480px; height: 480px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(217,119,6,.4) 0%, transparent 70%);
+  }
+  .hero h1 {
+    font-family: Georgia, serif;
+    font-size: 52px; line-height: 1.1; margin: 0 0 16px;
+    letter-spacing: -.01em; max-width: 620px;
+  }
+  .hero p { font-size: 17px; opacity: .85; max-width: 520px; margin: 0 0 24px; }
+  .hero .eyebrow {
+    display: inline-block; font-size: 12px; font-weight: 700;
+    letter-spacing: .15em; text-transform: uppercase;
+    color: var(--store-accent); margin-bottom: 14px;
+  }
+  .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+  .hero .btn-accent { background: var(--store-accent); color: #fff; }
+  .hero .btn-outline { background: transparent; color: #fff; border-color: rgba(255,255,255,.4); }
+  .hero .btn-outline:hover { background: rgba(255,255,255,.1); border-color: #fff; }
+
+  /* Trust strip */
+  .trust-strip {
+    background: #fff;
+    border-top: 1px solid var(--store-line);
+    border-bottom: 1px solid var(--store-line);
+    padding: 18px 0;
+  }
+  .trust-strip .row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  }
+  .trust-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--store-muted); }
+  .trust-item .ic { font-size: 20px; }
+
+  /* Sections */
+  .section { padding: 60px 0; }
+  .section h2 {
+    font-family: Georgia, serif;
+    font-size: 32px; margin: 0 0 8px; letter-spacing: -.01em;
+  }
+  .section .sub { color: var(--store-muted); margin: 0 0 28px; }
+  .section-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+
+  /* Categories grid */
+  .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .cat-card {
+    position: relative; aspect-ratio: 4/3; border-radius: var(--r-lg); overflow: hidden;
+    background: var(--store-navy); color: #fff; cursor: pointer;
+    display: flex; align-items: end; padding: 24px;
+    transition: transform .2s ease;
+  }
+  .cat-card:hover { transform: translateY(-4px); }
+  .cat-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,.6) 100%);
+  }
+  .cat-card .label { position: relative; z-index: 1; }
+  .cat-card .label h3 { font-family: Georgia, serif; font-size: 24px; margin: 0 0 4px; }
+  .cat-card .label span { font-size: 13px; opacity: .8; }
+  /* Fallback colour if no image */
+  .cat-card { background-color: #0f1d3a; }
+
+  /* Product grid */
+  .product-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+
+  .product-card {
+    background: #fff; border-radius: var(--r-lg); overflow: hidden;
+    transition: transform .2s ease, box-shadow .2s ease;
+    cursor: pointer; border: 1px solid transparent;
+  }
+  .product-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+  .product-card .img-wrap {
+    aspect-ratio: 1/1; background: #f5f5f5; overflow: hidden;
+  }
+  .product-card .img-wrap img,
+  .product-card .img-wrap > div {
+    width: 100%; height: 100%; object-fit: cover; transition: transform .35s ease;
+  }
+  .product-card:hover .img-wrap img { transform: scale(1.04); }
+  .product-card .info { padding: 14px 4px 4px; }
+  .product-card .name { font-weight: 600; font-size: 14px; margin: 0 0 4px; color: var(--store-fg); }
+  .product-card .cat { font-size: 11px; color: var(--store-muted); text-transform: uppercase; letter-spacing: .08em; margin: 0 0 6px; }
+  .product-card .price-row { display: flex; align-items: baseline; gap: 8px; }
+  .product-card .price { font-weight: 700; color: var(--store-fg); }
+  .product-card .compare { text-decoration: line-through; color: var(--store-muted); font-size: 13px; }
+  .product-card .badge-disc {
+    background: var(--store-accent); color: #fff;
+    font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+  }
+
+  /* PLP layout */
+  .plp { display: grid; grid-template-columns: 240px 1fr; gap: 32px; padding: 32px 0; }
+  .plp-sidebar h4 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--store-muted); margin: 0 0 12px; }
+  .plp-sidebar .group { margin-bottom: 24px; }
+  .plp-sidebar label { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 14px; cursor: pointer; }
+  .plp-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
+  .plp-toolbar .results { color: var(--store-muted); font-size: 14px; }
+  .plp-search { position: relative; }
+  .plp-search input { padding-left: 38px; }
+  .plp-search::before { content: '🔍'; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; opacity: .6; }
+  .plp-empty { text-align: center; padding: 80px 20px; color: var(--store-muted); }
+  .price-range { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+  .price-range input { width: 80px; padding: 6px 8px; }
+
+  /* PDP */
+  .pdp { padding: 40px 0 60px; }
+  .pdp-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px; }
+  .pdp-gallery .main {
+    aspect-ratio: 1/1; background: #f5f5f5; border-radius: var(--r-lg); overflow: hidden;
+  }
+  .pdp-gallery .main img, .pdp-gallery .main > div { width: 100%; height: 100%; object-fit: cover; }
+  .pdp-gallery .thumbs { display: flex; gap: 8px; margin-top: 12px; }
+  .pdp-gallery .thumbs .thumb {
+    width: 80px; height: 80px; border-radius: var(--r-sm); overflow: hidden; cursor: pointer;
+    border: 2px solid transparent; background: #f5f5f5;
+  }
+  .pdp-gallery .thumbs .thumb.active { border-color: var(--store-navy); }
+
+  .pdp-info .cat {
+    font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--store-muted); margin-bottom: 8px;
+  }
+  .pdp-info h1 { font-family: Georgia, serif; font-size: 36px; margin: 0 0 12px; letter-spacing: -.01em; }
+  .pdp-info .price-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+  .pdp-info .price { font-size: 26px; font-weight: 700; }
+  .pdp-info .compare { text-decoration: line-through; color: var(--store-muted); font-size: 16px; }
+  .pdp-info .desc { color: #475569; margin: 16px 0 24px; line-height: 1.65; }
+  .pdp-info .stock { font-size: 13px; margin-bottom: 20px; }
+  .pdp-info .stock.in { color: var(--store-success); }
+  .pdp-info .stock.out { color: var(--store-danger); }
+  .variant-group { margin-bottom: 16px; }
+  .variant-group .lbl { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .variant-options { display: flex; flex-wrap: wrap; gap: 8px; }
+  .variant-btn {
+    padding: 8px 14px; border: 1px solid var(--store-line); background: #fff;
+    border-radius: var(--r-sm); font-size: 14px; cursor: pointer;
+    transition: all .15s ease;
+  }
+  .variant-btn:hover { border-color: var(--store-navy); }
+  .variant-btn.active { background: var(--store-navy); color: #fff; border-color: var(--store-navy); }
+  .variant-btn:disabled { opacity: .4; cursor: not-allowed; text-decoration: line-through; }
+
+  .qty {
+    display: inline-flex; align-items: center; border: 1px solid var(--store-line);
+    border-radius: var(--r-sm); overflow: hidden; margin-right: 12px;
+  }
+  .qty button { background: transparent; border: 0; padding: 10px 14px; font-size: 16px; }
+  .qty button:hover { background: #f5f5f5; }
+  .qty input { width: 50px; text-align: center; border: 0; border-left: 1px solid var(--store-line); border-right: 1px solid var(--store-line); padding: 10px 0; }
+  .pdp-actions { display: flex; align-items: center; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+
+  .pdp-tabs { margin-top: 40px; }
+  .pdp-tabs .head { display: flex; gap: 24px; border-bottom: 1px solid var(--store-line); }
+  .pdp-tabs .head button { background: transparent; border: 0; padding: 12px 0; font-weight: 600; color: var(--store-muted); border-bottom: 2px solid transparent; }
+  .pdp-tabs .head button.active { color: var(--store-navy); border-color: var(--store-navy); }
+  .pdp-tabs .body { padding: 20px 0; color: #475569; }
+
+  /* Cart */
+  .cart-page { padding: 40px 0 80px; }
+  .cart-page h1 { font-family: Georgia, serif; font-size: 36px; margin: 0 0 24px; }
+  .cart-layout { display: grid; grid-template-columns: 1fr 360px; gap: 32px; align-items: start; }
+  .cart-item {
+    display: grid; grid-template-columns: 100px 1fr auto; gap: 16px;
+    padding: 16px 0; border-bottom: 1px solid var(--store-line);
+    align-items: center;
+  }
+  .cart-item .img { width: 100px; height: 100px; border-radius: var(--r-md); overflow: hidden; background: #f5f5f5; }
+  .cart-item .img img, .cart-item .img > div { width: 100%; height: 100%; object-fit: cover; }
+  .cart-item .meta .name { font-weight: 600; margin: 0 0 4px; }
+  .cart-item .meta .sub { color: var(--store-muted); font-size: 13px; }
+  .cart-item .price-col { text-align: right; }
+  .cart-item .price-col .price { font-weight: 700; display: block; margin-bottom: 8px; }
+  .cart-item .rm { background: transparent; border: 0; color: var(--store-muted); font-size: 12px; text-decoration: underline; cursor: pointer; }
+  .cart-item .rm:hover { color: var(--store-danger); }
+
+  .cart-summary {
+    background: #fafafa; border: 1px solid var(--store-line); border-radius: var(--r-lg);
+    padding: 20px;
+  }
+  .cart-summary h3 { font-size: 18px; margin: 0 0 16px; }
+  .cart-summary .line { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
+  .cart-summary .line.total { font-size: 18px; font-weight: 700; border-top: 1px solid var(--store-line); margin-top: 8px; padding-top: 14px; }
+  .cart-summary .ship-note { background: #fff; border: 1px dashed var(--store-line); padding: 10px; border-radius: var(--r-sm); font-size: 12px; color: var(--store-muted); margin: 12px 0; }
+
+  /* Checkout */
+  .checkout-page { padding: 40px 0 80px; }
+  .checkout-page h1 { font-family: Georgia, serif; font-size: 32px; margin: 0 0 24px; }
+  .checkout-layout { display: grid; grid-template-columns: 1fr 360px; gap: 32px; align-items: start; }
+  .checkout-step {
+    background: #fff; border: 1px solid var(--store-line); border-radius: var(--r-lg);
+    padding: 20px; margin-bottom: 16px;
+  }
+  .checkout-step .step-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .checkout-step .step-num {
+    width: 28px; height: 28px; border-radius: 50%; background: var(--store-navy); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;
+  }
+  .checkout-step .step-num.done { background: var(--store-success); }
+  .checkout-step .step-title { font-weight: 600; font-size: 16px; }
+  .pay-option {
+    display: flex; align-items: center; gap: 12px; padding: 14px;
+    border: 1px solid var(--store-line); border-radius: var(--r-md); margin-bottom: 8px; cursor: pointer;
+  }
+  .pay-option.active { border-color: var(--store-navy); background: #f8fafc; }
+  .pay-option .ic { font-size: 22px; }
+  .step-actions { display: flex; gap: 8px; margin-top: 16px; }
+
+  /* Order confirmation */
+  .confirm { text-align: center; padding: 60px 20px; }
+  .confirm .ok {
+    width: 72px; height: 72px; border-radius: 50%; background: #dcfce7;
+    color: var(--store-success); display: flex; align-items: center; justify-content: center;
+    font-size: 36px; margin: 0 auto 20px;
+  }
+  .confirm h1 { font-family: Georgia, serif; font-size: 32px; margin: 0 0 8px; }
+  .confirm .oid {
+    display: inline-block; background: #f5f5f5; padding: 8px 16px; border-radius: 999px;
+    font-family: monospace; font-size: 14px; margin: 16px 0 24px;
+  }
+  .confirm .summary-card { max-width: 480px; margin: 24px auto; text-align: left; background: #fff; border: 1px solid var(--store-line); border-radius: var(--r-lg); padding: 20px; }
+
+  /* Promo banner */
+  .promo-banner {
+    background: var(--store-accent); color: #fff;
+    padding: 32px 0; text-align: center;
+  }
+  .promo-banner h2 { font-family: Georgia, serif; font-size: 28px; margin: 0 0 8px; }
+  .promo-banner p { margin: 0; opacity: .9; }
+
+  /* Mobile */
+  @media (max-width: 900px) {
+    .product-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .cat-grid { grid-template-columns: 1fr; }
+    .pdp-grid, .cart-layout, .checkout-layout, .plp { grid-template-columns: 1fr; }
+    .pdp-info h1 { font-size: 28px; }
+    .hero h1 { font-size: 36px; }
+    .hero { padding: 48px 0; }
+    .trust-strip .row { grid-template-columns: repeat(2, 1fr); }
+    .cart-item { grid-template-columns: 80px 1fr; }
+    .cart-item .img { width: 80px; height: 80px; }
+    .cart-item .price-col { grid-column: 1 / -1; text-align: left; }
+  }
+
+  /* ============================================================
+     ADMIN-SPECIFIC COMPONENTS
+     ============================================================ */
+
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: #fff; border: 1px solid var(--admin-line); border-radius: var(--r-lg);
+    padding: 18px; position: relative; overflow: hidden;
+  }
+  .stat-card .lbl { font-size: 12px; color: var(--admin-muted); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px; }
+  .stat-card .val { font-size: 26px; font-weight: 700; color: var(--admin-fg); }
+  .stat-card .sub { font-size: 12px; color: var(--admin-muted); margin-top: 4px; }
+  .stat-card .delta { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; margin-top: 6px; }
+  .stat-card .delta.up { background: #dcfce7; color: #15803d; }
+  .stat-card .delta.down { background: #fee2e2; color: #b91c1c; }
+  .stat-card .ic { position: absolute; top: 14px; right: 14px; font-size: 22px; opacity: .4; }
+
+  .panel { background: #fff; border: 1px solid var(--admin-line); border-radius: var(--r-lg); overflow: hidden; margin-bottom: 24px; }
+  .panel-head { padding: 14px 18px; border-bottom: 1px solid var(--admin-line); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .panel-head h3 { margin: 0; font-size: 15px; }
+  .panel-body { padding: 18px; }
+  .panel-body.no-pad { padding: 0; }
+
+  .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .table th, .table td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--admin-line); }
+  .table th { font-weight: 600; font-size: 12px; color: var(--admin-muted); text-transform: uppercase; letter-spacing: .04em; background: #fafbfc; }
+  .table tr:hover td { background: #fafbfc; }
+  .table .actions { display: flex; gap: 6px; }
+  .table-wrap { overflow-x: auto; }
+
+  .st { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+  .st-received   { background: #e5e7eb; color: #4b5563; }
+  .st-processing { background: #fef3c7; color: #b45309; }
+  .st-shipped    { background: #dbeafe; color: #1d4ed8; }
+  .st-delivered  { background: #dcfce7; color: #15803d; }
+  .st-cancelled  { background: #fee2e2; color: #b91c1c; }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .toolbar .input, .toolbar .select { padding: 7px 10px; font-size: 13px; }
+  .toolbar .spacer { flex: 1; }
+
+  .chart-wrap { padding: 18px; }
+  .chart-svg { width: 100%; height: 240px; display: block; }
+  .chart-toggle { display: inline-flex; background: #f1f5f9; border-radius: 999px; padding: 3px; }
+  .chart-toggle button { background: transparent; border: 0; padding: 5px 12px; font-size: 12px; font-weight: 600; color: var(--admin-muted); border-radius: 999px; cursor: pointer; }
+  .chart-toggle button.active { background: #fff; color: var(--admin-fg); box-shadow: var(--shadow-sm); }
+
+  .order-detail { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; font-size: 13px; }
+  .kv .k { color: var(--admin-muted); }
+  .kv .v { color: var(--admin-fg); font-weight: 500; }
+  .items-table img { width: 44px; height: 44px; object-fit: cover; border-radius: var(--r-sm); }
+  .status-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+  .status-pills button {
+    background: #fff; border: 1px solid var(--admin-line); padding: 6px 10px; font-size: 12px;
+    border-radius: 999px; cursor: pointer;
+  }
+  .status-pills button.active { background: var(--admin-fg); color: #fff; border-color: var(--admin-fg); }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .variants-builder { border: 1px dashed var(--admin-line); border-radius: var(--r-md); padding: 12px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; background: #f1f5f9; padding: 4px 10px; border-radius: 999px; font-size: 12px; }
+  .chip button { background: transparent; border: 0; cursor: pointer; color: var(--admin-muted); padding: 0; }
+
+  .customer-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--admin-muted); }
+
+  .settings-section { background: #fff; border: 1px solid var(--admin-line); border-radius: var(--r-lg); padding: 20px; margin-bottom: 16px; }
+  .settings-section h3 { margin: 0 0 12px; font-size: 16px; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+  .toggle { position: relative; width: 40px; height: 22px; }
+  .toggle input { display: none; }
+  .toggle span { position: absolute; inset: 0; background: #cbd5e1; border-radius: 999px; transition: .2s; cursor: pointer; }
+  .toggle span::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: .2s; }
+  .toggle input:checked + span { background: var(--store-accent); }
+  .toggle input:checked + span::after { left: 21px; }
+
+  .thumb-sm { width: 40px; height: 40px; border-radius: var(--r-sm); overflow: hidden; background: #f1f5f9; flex-shrink: 0; }
+  .thumb-sm img, .thumb-sm > div { width: 100%; height: 100%; object-fit: cover; }
+  .product-row-name { display: flex; align-items: center; gap: 10px; }
+
+  @media (max-width: 900px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .order-detail { grid-template-columns: 1fr; }
+    .form-grid { grid-template-columns: 1fr; }
+    .customer-summary { grid-template-columns: 1fr; }
+  }
+
+  /* ============================================================
+     VISUAL POLISH
+     ============================================================ */
+
+  /* Smooth view transitions */
+  #store-view, #admin-view { animation: viewIn .25s ease; }
+  @keyframes viewIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* Image lazy fade-in */
+  .product-card .img-wrap img,
+  .cart-item .img img,
+  .thumb img,
+  .pdp-gallery .main img,
+  .items-table img {
+    opacity: 0;
+    transition: opacity .35s ease;
+  }
+  .product-card .img-wrap img.loaded,
+  .cart-item .img img.loaded,
+  .thumb img.loaded,
+  .pdp-gallery .main img.loaded,
+  .items-table img.loaded {
+    opacity: 1;
+  }
+
+  /* Skeleton shimmer (for chart) */
+  .skeleton {
+    background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: var(--r-md);
+  }
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Button press feedback */
+  .btn { transition: transform .08s ease, background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease; }
+  .btn:active { transform: scale(.97); }
+
+  /* Stat card subtle glow on new order */
+  .stat-card.pulse { animation: pulseGlow 1.2s ease; }
+  @keyframes pulseGlow {
+    0%   { box-shadow: 0 0 0 0 rgba(217,119,6,.5); }
+    100% { box-shadow: 0 0 0 14px rgba(217,119,6,0); }
+  }
+
+  /* Order row highlight when new */
+  tr.new-order { animation: rowFlash 1.2s ease; }
+  @keyframes rowFlash {
+    0%   { background: #fef3c7; }
+    100% { background: transparent; }
+  }
+
+  /* Better focus rings for accessibility */
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--store-accent);
+    outline-offset: 2px;
+  }
+
+  /* Sticky cart summary on tall viewports */
+  @media (min-width: 901px) {
+    .cart-summary, .checkout-layout aside.cart-summary { position: sticky; top: 88px; }
+  }
+
+  /* Trust badge micro-icons */
+  .trust-item .ic {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #f1f5f9;
+  }
+
+  /* Hide number input spinners (cleaner look) */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type="number"] { -moz-appearance: textfield; }
+
+  /* Mobile */
+  @media (max-width: 768px) {
+    .admin.active { grid-template-columns: 1fr; }
+    .admin-sidebar { position: fixed; left: -240px; transition: left .2s ease; z-index: 200; }
+    .admin-sidebar.open { left: 0; }
+    .nav { display: none; }
+    .store-footer .grid { grid-template-columns: 1fr 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Top-level view toggle (visible at all times) -->
+<div class="app-toggle" role="tablist" aria-label="Switch between Store and Admin">
+  <button id="tab-store" class="active" role="tab" aria-selected="true">Store</button>
+  <button id="tab-admin" role="tab" aria-selected="false">Admin Panel</button>
+</div>
+
+<!-- ============================================================
+     STORE SHELL
+     ============================================================ -->
+<div id="store" class="store">
+  <header class="store-header">
+    <div class="container row">
+      <a href="#" class="logo" data-route="home">Atelier<span>PK</span></a>
+      <nav class="nav" id="store-nav">
+        <a href="#" data-route="home" class="active">Home</a>
+        <a href="#" data-route="shop">Shop</a>
+        <a href="#" data-route="shop" data-cat="men">Men</a>
+        <a href="#" data-route="shop" data-cat="women">Women</a>
+        <a href="#" data-route="shop" data-cat="accessories">Accessories</a>
+      </nav>
+      <div class="header-actions">
+        <button class="cart-btn" data-route="cart" aria-label="Open cart">
+          <span aria-hidden="true">🛍</span>
+          <span>Cart</span>
+          <span class="cart-badge" id="cart-count">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="store-main">
+    <div id="store-view"><!-- Store views rendered by Store.render() --></div>
+  </main>
+
+  <footer class="store-footer">
+    <div class="container">
+      <div class="grid">
+        <div>
+          <div class="logo" style="color:#fff;">Atelier<span>PK</span></div>
+          <p style="margin-top:10px; max-width:320px; font-size:14px;">Modern Pakistani fashion &amp; lifestyle, made for the everyday wardrobe. Free shipping on orders over ₨ 3,000.</p>
+        </div>
+        <div>
+          <h4>Shop</h4>
+          <a href="#" data-route="shop" data-cat="men">Men</a>
+          <a href="#" data-route="shop" data-cat="women">Women</a>
+          <a href="#" data-route="shop" data-cat="accessories">Accessories</a>
+        </div>
+        <div>
+          <h4>Help</h4>
+          <a href="#" data-footer-link="shipping">Shipping</a>
+          <a href="#" data-footer-link="returns">Returns</a>
+          <a href="#" data-footer-link="contact">Contact</a>
+        </div>
+        <div>
+          <h4>Trust</h4>
+          <p style="margin:0; font-size:14px;">🔒 Secure checkout</p>
+          <p style="margin:6px 0 0; font-size:14px;">↩ Free returns</p>
+          <p style="margin:6px 0 0; font-size:14px;">🚚 Nationwide delivery</p>
+        </div>
+      </div>
+      <div class="legal">© 2026 AtelierPK — All rights reserved.</div>
+    </div>
+  </footer>
+</div>
+
+<!-- ============================================================
+     ADMIN SHELL
+     ============================================================ -->
+<div id="admin" class="admin">
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="logo">Atelier<span>PK</span></div>
+    <nav class="admin-nav" id="admin-nav">
+      <button data-view="dashboard" class="active"><span class="icon">📊</span> Dashboard</button>
+      <button data-view="orders"><span class="icon">📦</span> Orders</button>
+      <button data-view="products"><span class="icon">👕</span> Products</button>
+      <button data-view="customers"><span class="icon">👥</span> Customers</button>
+      <button data-view="settings"><span class="icon">⚙️</span> Settings</button>
+    </nav>
+  </aside>
+
+  <section>
+    <header class="admin-topbar">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="btn btn-ghost btn-sm" id="admin-menu-btn" style="display:none;">☰</button>
+        <h1 id="admin-page-title">Dashboard</h1>
+      </div>
+      <div class="who">Signed in as <strong>Admin</strong></div>
+    </header>
+    <div class="admin-content" id="admin-view">
+      <!-- Admin views injected in piece 4 -->
+      <div style="padding: 40px 0; text-align: center; color: var(--admin-muted);">
+        Admin views will be added in the next piece.
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Modal & toast roots -->
+<div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-head"><h3 id="modal-title">Title</h3><button class="icon-x" id="modal-close" aria-label="Close">×</button></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot" id="modal-foot"></div>
+  </div>
+</div>
+<div id="toast-root"></div>
+
+<script>
+  /* ============================================================
+     STATE LAYER  —  localStorage + pub/sub
+     ============================================================ */
+  const STORAGE_KEY = 'atelierpk.v1';
+
+  const DEFAULT_DATA = {
+    settings: {
+      storeName: 'AtelierPK',
+      storeEmail: 'hello@atelierpk.pk',
+      currency: 'PKR',
+      currencySymbol: '₨',
+      address: '12 Mall Road, Lahore, Pakistan',
+      notifyNewOrder: true,
+      notifyLowStock: true
+    },
+    products: [],     // populated in piece 4
+    orders: [],       // populated when customer checks out
+    customers: [],    // derived from orders, but cached
+    view: 'store'     // 'store' | 'admin'
+  };
+
+  function loadData() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return JSON.parse(JSON.stringify(DEFAULT_DATA));
+      const parsed = JSON.parse(raw);
+      return { ...JSON.parse(JSON.stringify(DEFAULT_DATA)), ...parsed };
+    } catch (e) {
+      return JSON.parse(JSON.stringify(DEFAULT_DATA));
+    }
+  }
+  function saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  const data = loadData();
+
+  // Tiny pub/sub — any module can listen, e.g. for live updates
+  const listeners = new Map();
+  function on(event, fn) {
+    if (!listeners.has(event)) listeners.set(event, new Set());
+    listeners.get(event).add(fn);
+    return () => listeners.get(event).delete(fn);
+  }
+  function emit(event, payload) {
+    (listeners.get(event) || []).forEach(fn => { try { fn(payload); } catch (e) { console.error(e); } });
+  }
+
+  /* ============================================================
+     UTILITIES
+     ============================================================ */
+  function fmtMoney(n) {
+    const sym = data.settings.currencySymbol || '₨';
+    return `${sym} ${Number(n || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 })}`;
+  }
+  function uid(prefix = '') {
+    return prefix + Math.random().toString(36).slice(2, 9).toUpperCase();
+  }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  /* ============================================================
+     TOAST
+     ============================================================ */
+  function toast(message, type = '') {
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.textContent = message;
+    document.getElementById('toast-root').appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateY(10px)'; el.style.transition = '.25s'; }, 2500);
+    setTimeout(() => el.remove(), 2900);
+  }
+
+  /* ============================================================
+     MODAL
+     ============================================================ */
+  const modal = {
+    el: document.getElementById('modal-backdrop'),
+    titleEl: document.getElementById('modal-title'),
+    bodyEl: document.getElementById('modal-body'),
+    footEl: document.getElementById('modal-foot'),
+    open({ title = '', body = '', buttons = [] } = {}) {
+      this.titleEl.textContent = title;
+      this.bodyEl.innerHTML = body;
+      this.footEl.innerHTML = '';
+      buttons.forEach(b => {
+        const btn = document.createElement('button');
+        btn.className = 'btn ' + (b.variant || 'btn-ghost');
+        btn.textContent = b.label;
+        btn.onclick = () => { b.onClick && b.onClick(); if (b.close !== false) this.close(); };
+        this.footEl.appendChild(btn);
+      });
+      this.el.classList.add('open');
+    },
+    close() { this.el.classList.remove('open'); }
+  };
+  document.getElementById('modal-close').onclick = () => modal.close();
+  document.getElementById('modal-backdrop').onclick = (e) => { if (e.target.id === 'modal-backdrop') modal.close(); };
+
+  /* ============================================================
+     APP TOGGLE — Store <-> Admin
+     ============================================================ */
+  const storeEl = document.getElementById('store');
+  const adminEl = document.getElementById('admin');
+  const tabStore = document.getElementById('tab-store');
+  const tabAdmin = document.getElementById('tab-admin');
+
+  function showView(name) {
+    if (name === 'admin') {
+      storeEl.classList.add('hidden');
+      adminEl.classList.add('active');
+      tabAdmin.classList.add('active'); tabStore.classList.remove('active');
+    } else {
+      storeEl.classList.remove('hidden');
+      adminEl.classList.remove('active');
+      tabStore.classList.add('active'); tabAdmin.classList.remove('active');
+    }
+    data.view = name; saveData();
+    emit('view:changed', name);
+  }
+  tabStore.onclick = () => showView('store');
+  tabAdmin.onclick = () => showView('admin');
+
+  // Restore last view
+  showView(data.view || 'store');
+
+  /* ============================================================
+     CATALOG — sample products + Products module
+     ============================================================ */
+
+  /* ---------- Seed sample products (only if data is empty) ---------- */
+  const SAMPLE_PRODUCTS = [
+    {
+      id: 'p_kurta_m_01',
+      name: 'Ivory Cotton Kurta',
+      category: 'men',
+      price: 3490, compareAt: 4290,
+      description: 'A breathable pure-cotton kurta in classic ivory. Hand-finished placket and side slits, tailored for everyday comfort with a relaxed shoulder.',
+      images: ['https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=900&auto=format&fit=crop'],
+      variants: { sizes: ['S','M','L','XL'] },
+      stock: 24, status: 'active', featured: true, createdAt: Date.now()-1000*60*60*24*3
+    },
+    {
+      id: 'p_skw_w_01',
+      name: 'Sage Lawn Shalwar Kameez',
+      category: 'women',
+      price: 5990, compareAt: 6990,
+      description: 'Three-piece sage-green suit in soft lawn with embroidered neckline. Includes kameez, straight trousers, and chiffon dupatta.',
+      images: ['https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=900&auto=format&fit=crop'],
+      variants: { sizes: ['XS','S','M','L','XL'] },
+      stock: 18, status: 'active', featured: true, createdAt: Date.now()-1000*60*60*24*7
+    },
+    {
+      id: 'p_kurta_w_02',
+      name: 'Midnight Embroidered Kurta',
+      category: 'women',
+      price: 4790,
+      description: 'A-line kurta in deep midnight blue with subtle threadwork at the cuffs and hem. Pairs well with straight pants and palazzos.',
+      images: ['https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=900&auto=format&fit=crop'],
+      variants: { sizes: ['S','M','L','XL'], colors: ['Midnight','Ivory'] },
+      stock: 12, status: 'active', featured: true, createdAt: Date.now()-1000*60*60*24*2
+    },
+    {
+      id: 'p_skw_m_02',
+      name: 'Charcoal Linen Suit',
+      category: 'men',
+      price: 6490, compareAt: 7490,
+      description: 'Lightweight linen shalwar kameez in charcoal with self-textured weave. Ideal for warm evenings and daytime events.',
+      images: ['https://images.unsplash.com/photo-1617137968427-85924c800a22?w=900&auto=format&fit=crop'],
+      variants: { sizes: ['M','L','XL','XXL'] },
+      stock: 9, status: 'active', featured: false, createdAt: Date.now()-1000*60*60*24*5
+    },
+    {
+      id: 'p_acc_01',
+      name: 'Hand-tooled Leather Peshawari Chappal',
+      category: 'accessories',
+      price: 2990,
+      description: 'Genuine leather chappal hand-tooled in Peshawar. Cushioned sole, brass fittings, and a classic curled toe.',
+      images: ['https://images.unsplash.com/photo-1605733513597-a8f8341084e6?w=900&auto=format&fit=crop'],
+      variants: { sizes: ['39','40','41','42','43','44'] },
+      stock: 30, status: 'active', featured: true, createdAt: Date.now()-1000*60*60*24*10
+    },
+    {
+      id: 'p_acc_02',
+      name: 'Brass &amp; Lac Bangle Set',
+      category: 'accessories',
+      price: 1890, compareAt: 2290,
+      description: 'Set of four hand-lacquered brass bangles in warm amber tones. Lightweight and stackable.',
+      images: ['https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=900&auto=format&fit=crop'],
+      variants: {},
+      stock: 40, status: 'active', featured: false, createdAt: Date.now()-1000*60*60*24*1
+    }
+  ];
+
+  if (!data.products || data.products.length === 0) {
+    data.products = SAMPLE_PRODUCTS;
+    saveData();
+  }
+
+  /* ---------- Seed sample orders + customers (only on first ever load) ---------- */
+  function seedDemoOrders() {
+    if (data.orders && data.orders.length > 0) return;
+    if (!data.products || data.products.length === 0) return;
+
+    const names = [
+      { name: 'Ayesha Khan', phone: '0321-4567890', email: 'ayesha.khan@gmail.com', city: 'Lahore' },
+      { name: 'Hamza Tariq', phone: '0300-1234567', email: 'hamza.tariq@outlook.com', city: 'Karachi' },
+      { name: 'Sara Malik',  phone: '0333-9876543', email: 'sara.malik@yahoo.com',    city: 'Islamabad' },
+      { name: 'Bilal Ahmed', phone: '0345-1122334', email: 'bilal.ahmed@gmail.com',  city: 'Rawalpindi' },
+      { name: 'Zainab Riaz', phone: '0312-5566778', email: 'zainab.riaz@gmail.com',  city: 'Faisalabad' },
+      { name: 'Ali Raza',    phone: '0301-2233445', email: 'ali.raza@hotmail.com',   city: 'Multan' }
+    ];
+    const statuses = ['delivered','delivered','shipped','processing','received','delivered'];
+    const payments = ['cod','cod','bank','cod','cod','bank'];
+    const DAY = 86400000;
+    const orders = [];
+    const customers = [];
+
+    for (let i = 0; i < names.length; i++) {
+      const n = names[i];
+      // Pick 1-3 random products
+      const numItems = 1 + Math.floor(Math.random() * 3);
+      const items = [];
+      const used = new Set();
+      for (let j = 0; j < numItems; j++) {
+        const p = data.products[Math.floor(Math.random() * data.products.length)];
+        if (used.has(p.id)) continue;
+        used.add(p.id);
+        const sizes = (p.variants && p.variants.sizes) || [];
+        const variant = sizes.length ? sizes[Math.floor(Math.random() * sizes.length)] : '';
+        items.push({
+          productId: p.id, name: p.name, variant,
+          qty: 1 + Math.floor(Math.random() * 2),
+          price: p.price, image: (p.images || [])[0] || null
+        });
+      }
+      const subtotal = items.reduce((s, x) => s + x.price * x.qty, 0);
+      const shipping = subtotal >= 3000 ? 0 : 250;
+      const total = subtotal + shipping;
+      const createdAt = Date.now() - (1 + Math.floor(Math.random() * 25)) * DAY;
+      const order = {
+        id: 'ATL-' + (1000 + i).toString() + Math.floor(Math.random() * 99),
+        createdAt, status: statuses[i], items,
+        customer: { name: n.name, phone: n.phone, email: n.email },
+        ship: { address: 'House ' + (i + 12) + ', Street ' + (i + 5), city: n.city, province: n.city === 'Karachi' ? 'Sindh' : (n.city === 'Quetta' ? 'Balochistan' : (n.city === 'Peshawar' ? 'Khyber Pakhtunkhwa' : 'Punjab')), postal: '54000' },
+        payment: payments[i], subtotal, shipping, total
+      };
+      orders.push(order);
+      customers.push({ id: 'c_seed_' + i, name: n.name, phone: n.phone, email: n.email, totalOrders: 1, totalSpent: total, joinedAt: createdAt, lastOrderAt: createdAt });
+    }
+    data.orders = orders;
+    data.customers = customers;
+    saveData();
+  }
+  seedDemoOrders();
+
+  /* ---------- Product module ---------- */
+  const Products = {
+    list() { return data.products.filter(p => p.status === 'active'); },
+    all()  { return data.products.slice(); },
+    get(id) { return data.products.find(p => p.id === id); },
+    findById(id) { return this.get(id); },
+    create(input) {
+      const p = {
+        id: 'p_' + uid(),
+        name: input.name || 'Untitled product',
+        category: input.category || 'accessories',
+        price: Number(input.price) || 0,
+        compareAt: input.compareAt ? Number(input.compareAt) : null,
+        description: input.description || '',
+        images: Array.isArray(input.images) && input.images.length ? input.images : [],
+        variants: input.variants || {},
+        stock: Number(input.stock) || 0,
+        status: input.status || 'active',
+        featured: !!input.featured,
+        createdAt: Date.now()
+      };
+      data.products.unshift(p);
+      saveData();
+      emit('products:changed');
+      return p;
+    },
+    update(id, patch) {
+      const p = this.get(id);
+      if (!p) return null;
+      Object.assign(p, patch, { updatedAt: Date.now() });
+      saveData();
+      emit('products:changed');
+      return p;
+    },
+    remove(id) {
+      data.products = data.products.filter(p => p.id !== id);
+      saveData();
+      emit('products:changed');
+    },
+    categories() {
+      const set = new Set(data.products.map(p => p.category).filter(Boolean));
+      const known = ['men','women','accessories'].filter(c => set.has(c));
+      const extra = [...set].filter(c => !['men','women','accessories'].includes(c));
+      return [...known, ...extra];
+    }
+  };
+
+  /* ---------- Image fallback (color tile w/ initials) ---------- */
+  function imageOrFallback(src, name, size) {
+    size = size || 600;
+    if (src) {
+      return `<img src="${escapeHtml(src)}" alt="${escapeHtml(name || '')}" loading="lazy" onerror="this.replaceWith(makeTile('${escapeHtml(name || '')}', ${size}))">`;
+    }
+    return makeTile(name || '?', size);
+  }
+  function makeTile(name, size) {
+    size = size || 600;
+    const initials = (name || '?').split(' ').filter(Boolean).slice(0,2).map(s => s[0]).join('').toUpperCase() || '?';
+    let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+    const bg = `hsl(${h}, 28%, 88%)`;
+    const fg = `hsl(${h}, 35%, 28%)`;
+    return `<div style="width:100%; aspect-ratio:1/1; background:${bg}; color:${fg}; display:flex; align-items:center; justify-content:center; font-family:Georgia, serif; font-size:${Math.max(28, size/10)}px; font-weight:700; letter-spacing:.04em; border-radius:var(--r-md);">${escapeHtml(initials)}</div>`;
+  }
+  window.makeTile = makeTile;
+
+  /* ============================================================
+     CART + STORE VIEWS + ROUTER
+     ============================================================ */
+
+  /* ---------- Cart (session-only, in-memory + persisted separately) ---------- */
+  const CART_KEY = 'atelierpk.cart.v1';
+  const Cart = {
+    items: [],
+    load() {
+      try { this.items = JSON.parse(localStorage.getItem(CART_KEY) || '[]'); }
+      catch (e) { this.items = []; }
+    },
+    save() { localStorage.setItem(CART_KEY, JSON.stringify(this.items)); },
+    add(productId, variant, qty = 1) {
+      const key = productId + '|' + (variant || '');
+      const existing = this.items.find(i => i.key === key);
+      if (existing) existing.qty += qty;
+      else this.items.push({ key, productId, variant, qty });
+      this.save();
+      emit('cart:changed');
+    },
+    setQty(key, qty) {
+      const it = this.items.find(i => i.key === key);
+      if (!it) return;
+      it.qty = Math.max(1, qty);
+      this.save();
+      emit('cart:changed');
+    },
+    remove(key) {
+      this.items = this.items.filter(i => i.key !== key);
+      this.save();
+      emit('cart:changed');
+    },
+    clear() { this.items = []; this.save(); emit('cart:changed'); },
+    count() { return this.items.reduce((n, i) => n + i.qty, 0); },
+    subtotal() {
+      return this.items.reduce((sum, i) => {
+        const p = Products.get(i.productId);
+        return p ? sum + p.price * i.qty : sum;
+      }, 0);
+    },
+    shipping() { return this.subtotal() >= 3000 ? 0 : 250; },
+    total() { return this.subtotal() + this.shipping(); }
+  };
+  Cart.load();
+
+  function updateCartBadge() {
+    const el = document.getElementById('cart-count');
+    if (el) el.textContent = Cart.count();
+  }
+  on('cart:changed', updateCartBadge);
+  updateCartBadge();
+
+  /* ---------- Store router (very small) ---------- */
+  // Route shape: { name, params }
+  let currentRoute = { name: 'home', params: {} };
+  function navigate(name, params = {}) {
+    currentRoute = { name, params };
+    window.scrollTo(0, 0);
+    if (data.view === 'store') Store.render();
+    syncNavActive();
+  }
+  function syncNavActive() {
+    document.querySelectorAll('#store-nav a').forEach(a => {
+      const route = a.dataset.route;
+      const cat = a.dataset.cat;
+      let active = false;
+      if (route === 'home' && currentRoute.name === 'home') active = true;
+      // "Shop" link is active only when on /shop with NO sub-category selected
+      if (route === 'shop' && !cat && currentRoute.name === 'shop' && !currentRoute.params.cat) active = true;
+      // Sub-category link (Men/Women/Accessories) is active only when its cat matches
+      if (route === 'shop' && cat && currentRoute.name === 'shop' && currentRoute.params.cat === cat) active = true;
+      a.classList.toggle('active', active);
+    });
+  }
+
+  // Delegate clicks on any element with data-route / data-pdp / data-cat
+  document.addEventListener('click', (e) => {
+    const routeEl = e.target.closest('[data-route]');
+    if (routeEl) {
+      e.preventDefault();
+      const name = routeEl.dataset.route;
+      const params = {};
+      if (routeEl.dataset.cat) params.cat = routeEl.dataset.cat;
+      navigate(name, params);
+      return;
+    }
+    const pdpEl = e.target.closest('[data-pdp]');
+    if (pdpEl) {
+      e.preventDefault();
+      navigate('pdp', { id: pdpEl.dataset.pdp });
+      return;
+    }
+  });
+
+  /* ---------- Store views ---------- */
+  const Store = {
+    el: document.getElementById('store-view'),
+    render() {
+      const r = currentRoute;
+      this.el.innerHTML = '';
+      if (r.name === 'home')     return this.viewHome();
+      if (r.name === 'shop')     return this.viewShop(r.params);
+      if (r.name === 'pdp')      return this.viewPdp(r.params);
+      if (r.name === 'cart')     return this.viewCart();
+      if (r.name === 'checkout') return this.viewCheckout();
+      if (r.name === 'confirm')  return this.viewConfirm(r.params);
+      this.viewHome();
+    },
+
+    /* ----- Home ----- */
+    viewHome() {
+      const featured = Products.all().filter(p => p.featured && p.status === 'active').slice(0, 4);
+      // Pick a representative product image per category for the home cards
+      const catImage = (cat) => {
+        const p = Products.all().find(x => x.category === cat && x.status === 'active' && x.images && x.images[0]);
+        return p ? p.images[0] : '';
+      };
+      const menImg     = catImage('men');
+      const womenImg   = catImage('women');
+      const accImg     = catImage('accessories');
+      const html = `
+        <section class="hero">
+          <div class="container">
+            <div class="eyebrow">New Season · Lawn &amp; Linen</div>
+            <h1>Effortless style,<br/>rooted in craft.</h1>
+            <p>Atelier PK brings together modern cuts and traditional Pakistani textiles — breathable lawn, hand-tooled leather, and embroidery that lasts.</p>
+            <div class="hero-actions">
+              <button class="btn btn-accent" data-route="shop">Shop the collection</button>
+              <button class="btn btn-outline" data-route="shop" data-cat="women">New in Women</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="trust-strip">
+          <div class="container row">
+            <div class="trust-item"><span class="ic">🚚</span><span>Free shipping over ₨ 3,000</span></div>
+            <div class="trust-item"><span class="ic">↩</span><span>7-day easy returns</span></div>
+            <div class="trust-item"><span class="ic">🔒</span><span>Secure checkout</span></div>
+            <div class="trust-item"><span class="ic">📞</span><span>WhatsApp support</span></div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="container">
+            <div class="section-head">
+              <div>
+                <h2>Shop by category</h2>
+                <p class="sub">Curated pieces for every part of the week.</p>
+              </div>
+              <button class="btn btn-ghost btn-sm" data-route="shop">View all →</button>
+            </div>
+            <div class="cat-grid">
+              <div class="cat-card" data-route="shop" data-cat="men" style="${menImg ? `background-image: linear-gradient(180deg, rgba(15,29,58,0) 30%, rgba(15,29,58,.85) 100%), url('${menImg}');` : ''} background-size: cover; background-position: center;">
+                <div class="label"><h3>Men</h3><span>Kurtas · Suits</span></div>
+              </div>
+              <div class="cat-card" data-route="shop" data-cat="women" style="${womenImg ? `background-image: linear-gradient(180deg, rgba(15,29,58,0) 30%, rgba(15,29,58,.85) 100%), url('${womenImg}');` : ''} background-size: cover; background-position: center;">
+                <div class="label"><h3>Women</h3><span>Lawn · Embroidered</span></div>
+              </div>
+              <div class="cat-card" data-route="shop" data-cat="accessories" style="${accImg ? `background-image: linear-gradient(180deg, rgba(15,29,58,0) 30%, rgba(15,29,58,.85) 100%), url('${accImg}');` : ''} background-size: cover; background-position: center;">
+                <div class="label"><h3>Accessories</h3><span>Leather · Brass</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" style="background:#fafafa;">
+          <div class="container">
+            <div class="section-head">
+              <div>
+                <h2>Featured</h2>
+                <p class="sub">Picked by our buyers this week.</p>
+              </div>
+              <button class="btn btn-ghost btn-sm" data-route="shop">Browse all →</button>
+            </div>
+            <div class="product-grid">
+              ${featured.map(p => productCardHtml(p)).join('')}
+            </div>
+          </div>
+        </section>
+
+        <section class="promo-banner">
+          <div class="container">
+            <h2>Free shipping across Pakistan</h2>
+            <p>On all orders over ₨ 3,000 · Cash on Delivery available nationwide</p>
+          </div>
+        </section>
+      `;
+      this.el.innerHTML = html;
+    },
+
+    /* ----- Shop / PLP ----- */
+    viewShop(params = {}) {
+      // If user navigated to plain /shop (no cat), always reset to All.
+      // If user navigated to /shop/men etc., keep the cat from params and reset other filters.
+      const hasCat = typeof params.cat === 'string' && params.cat.length > 0;
+      const defaults = { cat: '', q: '', min: '', max: '', sort: 'newest', inStock: true, sale: false };
+      if (hasCat) {
+        this._filters = { ...defaults, cat: params.cat };
+      } else {
+        this._filters = { ...defaults };
+      }
+      const f = this._filters;
+
+      const apply = () => {
+        let list = Products.list();
+        if (f.cat) list = list.filter(p => p.category === f.cat);
+        if (f.q) {
+          const q = f.q.toLowerCase();
+          list = list.filter(p => (p.name + ' ' + p.description + ' ' + p.category).toLowerCase().includes(q));
+        }
+        if (f.min) list = list.filter(p => p.price >= Number(f.min));
+        if (f.max) list = list.filter(p => p.price <= Number(f.max));
+        if (f.inStock) list = list.filter(p => p.stock > 0);
+        if (f.sale) list = list.filter(p => p.compareAt && p.compareAt > p.price);
+        if (f.sort === 'pl') list.sort((a, b) => a.price - b.price);
+        else if (f.sort === 'ph') list.sort((a, b) => b.price - a.price);
+        else list.sort((a, b) => b.createdAt - a.createdAt);
+
+        grid.innerHTML = list.length
+          ? list.map(p => productCardHtml(p)).join('')
+          : `<div class="plp-empty" style="grid-column:1/-1;">No products match your filters. <button class="btn btn-ghost btn-sm" id="clear-filters">Clear filters</button></div>`;
+        // Re-attach image load handlers for the newly rendered cards
+        attachImageLoadHandlers(grid);
+        resultsEl.textContent = `${list.length} product${list.length === 1 ? '' : 's'}`;
+        const cf = document.getElementById('clear-filters');
+        if (cf) cf.onclick = () => {
+          f.cat = ''; f.q = ''; f.min = ''; f.max = ''; f.sort = 'newest';
+          f.inStock = true; f.sale = false;
+          document.getElementById('min-p').value = '';
+          document.getElementById('max-p').value = '';
+          document.getElementById('plp-q').value = '';
+          document.getElementById('plp-sort').value = 'newest';
+          document.getElementById('in-stock-only').checked = true;
+          document.getElementById('sale-only').checked = false;
+          document.querySelectorAll('input[name="cat"]').forEach(r => { r.checked = r.value === ''; });
+          apply();
+        };
+      };
+
+      const html = `
+        <div class="container plp">
+          <aside class="plp-sidebar">
+            <div class="group">
+              <h4>Category</h4>
+              <label><input type="radio" name="cat" value="" ${!f.cat?'checked':''}> All</label>
+              <label><input type="radio" name="cat" value="men" ${f.cat==='men'?'checked':''}> Men</label>
+              <label><input type="radio" name="cat" value="women" ${f.cat==='women'?'checked':''}> Women</label>
+              <label><input type="radio" name="cat" value="accessories" ${f.cat==='accessories'?'checked':''}> Accessories</label>
+            </div>
+            <div class="group">
+              <h4>Price</h4>
+              <div class="price-range">
+                <input type="number" id="min-p" placeholder="Min" value="${f.min}">
+                <span>—</span>
+                <input type="number" id="max-p" placeholder="Max" value="${f.max}">
+              </div>
+              <button class="btn btn-ghost btn-sm" id="apply-price" style="margin-top:8px;">Apply</button>
+            </div>
+            <div class="group">
+              <h4>Availability</h4>
+              <label><input type="checkbox" id="in-stock-only" ${f.inStock?'checked':''}> In stock only</label>
+              <label><input type="checkbox" id="sale-only" ${f.sale?'checked':''}> On sale</label>
+            </div>
+          </aside>
+          <div>
+            <div class="plp-toolbar">
+              <div class="plp-search" style="flex:1; max-width:400px;">
+                <input class="input" id="plp-q" placeholder="Search products..." value="${escapeHtml(f.q)}">
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <span class="results" id="plp-results"></span>
+                <select class="select" id="plp-sort" style="width:auto;">
+                  <option value="newest" ${f.sort==='newest'?'selected':''}>Newest</option>
+                  <option value="pl" ${f.sort==='pl'?'selected':''}>Price: Low → High</option>
+                  <option value="ph" ${f.sort==='ph'?'selected':''}>Price: High → Low</option>
+                </select>
+              </div>
+            </div>
+            <div class="product-grid" id="plp-grid"></div>
+          </div>
+        </div>
+      `;
+      this.el.innerHTML = html;
+      const grid = document.getElementById('plp-grid');
+      const resultsEl = document.getElementById('plp-results');
+
+      const bind = () => {
+        document.querySelectorAll('input[name="cat"]').forEach(r => r.onchange = e => { f.cat = e.target.value; apply(); });
+        document.getElementById('apply-price').onclick = () => { f.min = document.getElementById('min-p').value; f.max = document.getElementById('max-p').value; apply(); };
+        document.getElementById('plp-q').oninput = e => { f.q = e.target.value; apply(); };
+        document.getElementById('plp-sort').onchange = e => { f.sort = e.target.value; apply(); };
+        document.getElementById('in-stock-only').onchange = e => { f.inStock = e.target.checked; apply(); };
+        document.getElementById('sale-only').onchange       = e => { f.sale = e.target.checked; apply(); };
+      };
+      bind();
+      apply();
+    },
+
+    /* ----- PDP ----- */
+    viewPdp({ id }) {
+      const p = Products.get(id);
+      if (!p) { this.el.innerHTML = `<div class="container" style="padding:80px 0; text-align:center;"><h1>Product not found</h1><button class="btn btn-primary" data-route="shop">Back to shop</button></div>`; return; }
+      const sizes = (p.variants && p.variants.sizes) || [];
+      const colors = (p.variants && p.variants.colors) || [];
+      const related = Products.list().filter(x => x.category === p.category && x.id !== p.id).slice(0, 4);
+
+      let selectedSize = sizes[0] || '';
+      let selectedColor = colors[0] || '';
+      let qty = 1;
+      let activeImg = 0;
+
+      const html = `
+        <div class="container pdp">
+          <div class="pdp-grid">
+            <div class="pdp-gallery">
+              <div class="main" id="pdp-main"></div>
+              ${p.images.length > 1 ? `<div class="thumbs" id="pdp-thumbs">
+                ${p.images.map((src, i) => `<div class="thumb ${i===0?'active':''}" data-i="${i}">${imageOrFallback(src, p.name, 80)}</div>`).join('')}
+              </div>` : ''}
+            </div>
+            <div class="pdp-info">
+              <div class="cat">${escapeHtml(p.category)}</div>
+              <h1>${escapeHtml(p.name)}</h1>
+              <div class="price-row">
+                <span class="price">${fmtMoney(p.price)}</span>
+                ${p.compareAt ? `<span class="compare">${fmtMoney(p.compareAt)}</span>` : ''}
+                ${p.compareAt ? `<span class="badge-disc" style="background:var(--store-accent); color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700;">-${Math.round((1 - p.price/p.compareAt) * 100)}%</span>` : ''}
+              </div>
+              <div class="stock ${p.stock > 0 ? 'in' : 'out'}">${p.stock > 0 ? `✓ In stock — ${p.stock} available` : '✗ Out of stock'}</div>
+              <p class="desc">${escapeHtml(p.description)}</p>
+
+              ${colors.length ? `<div class="variant-group">
+                <div class="lbl">Color: <span id="sel-color">${escapeHtml(selectedColor)}</span></div>
+                <div class="variant-options" id="color-opts">
+                  ${colors.map(c => `<button class="variant-btn ${c===selectedColor?'active':''}" data-c="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}
+                </div>
+              </div>` : ''}
+
+              ${sizes.length ? `<div class="variant-group">
+                <div class="lbl">Size: <span id="sel-size">${escapeHtml(selectedSize)}</span></div>
+                <div class="variant-options" id="size-opts">
+                  ${sizes.map(s => `<button class="variant-btn ${s===selectedSize?'active':''}" data-s="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join('')}
+                </div>
+              </div>` : ''}
+
+              <div class="pdp-actions">
+                <div class="qty">
+                  <button id="qty-minus" aria-label="Decrease">−</button>
+                  <input id="qty-input" value="1" inputmode="numeric">
+                  <button id="qty-plus" aria-label="Increase">+</button>
+                </div>
+                <button class="btn btn-accent" id="add-to-cart" ${p.stock <= 0 ? 'disabled' : ''}>
+                  ${p.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+                </button>
+                <button class="btn btn-ghost" data-route="cart">View cart</button>
+                <button class="btn btn-primary" id="buy-now" ${p.stock <= 0 ? 'disabled' : ''}>
+                  ${p.stock > 0 ? 'Buy now' : 'Out of Stock'}
+                </button>
+              </div>
+
+              <div class="pdp-tabs">
+                <div class="head">
+                  <button class="active" data-tab="details">Details</button>
+                  <button data-tab="shipping">Shipping &amp; Returns</button>
+                  <button data-tab="care">Care</button>
+                </div>
+                <div class="body" id="tab-body">
+                  <p>${escapeHtml(p.description)}</p>
+                  <p><strong>SKU:</strong> ${p.id}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          ${related.length ? `
+            <section style="margin-top:60px;">
+              <div class="section-head"><div><h2 style="font-family:Georgia, serif; font-size:24px; margin:0;">You may also like</h2></div></div>
+              <div class="product-grid">${related.map(p => productCardHtml(p)).join('')}</div>
+            </section>
+          ` : ''}
+        </div>
+      `;
+      this.el.innerHTML = html;
+
+      // Bind
+      const main = document.getElementById('pdp-main');
+      const renderImg = () => { main.innerHTML = imageOrFallback(p.images[activeImg], p.name, 600); };
+      renderImg();
+      if (p.images.length > 1) {
+        document.getElementById('pdp-thumbs').addEventListener('click', e => {
+          const t = e.target.closest('.thumb');
+          if (!t) return;
+          activeImg = Number(t.dataset.i);
+          document.querySelectorAll('#pdp-thumbs .thumb').forEach((x, i) => x.classList.toggle('active', i === activeImg));
+          renderImg();
+        });
+      }
+      if (colors.length) {
+        document.getElementById('color-opts').addEventListener('click', e => {
+          const b = e.target.closest('[data-c]'); if (!b) return;
+          selectedColor = b.dataset.c;
+          document.querySelectorAll('#color-opts .variant-btn').forEach(x => x.classList.toggle('active', x.dataset.c === selectedColor));
+          document.getElementById('sel-color').textContent = selectedColor;
+        });
+      }
+      if (sizes.length) {
+        document.getElementById('size-opts').addEventListener('click', e => {
+          const b = e.target.closest('[data-s]'); if (!b) return;
+          selectedSize = b.dataset.s;
+          document.querySelectorAll('#size-opts .variant-btn').forEach(x => x.classList.toggle('active', x.dataset.s === selectedSize));
+          document.getElementById('sel-size').textContent = selectedSize;
+        });
+      }
+      const qtyInput = document.getElementById('qty-input');
+      document.getElementById('qty-minus').onclick = () => { qty = Math.max(1, qty - 1); qtyInput.value = qty; };
+      document.getElementById('qty-plus').onclick = () => { qty = Math.min(p.stock || 99, qty + 1); qtyInput.value = qty; };
+      qtyInput.onchange = e => { qty = Math.max(1, Math.min(p.stock || 99, Number(e.target.value) || 1)); e.target.value = qty; };
+
+      document.getElementById('add-to-cart').onclick = () => {
+        const variant = [selectedColor, selectedSize].filter(Boolean).join(' / ');
+        Cart.add(p.id, variant, qty);
+        toast(`Added ${qty} × ${p.name} to cart`, 'success');
+      };
+
+      document.getElementById('buy-now').onclick = () => {
+        const variant = [selectedColor, selectedSize].filter(Boolean).join(' / ');
+        Cart.add(p.id, variant, qty);
+        navigate('checkout');
+      };
+
+      // Tabs
+      const tabBodies = {
+        details: `<p>${escapeHtml(p.description)}</p><p><strong>SKU:</strong> ${p.id}</p><p><strong>Category:</strong> ${escapeHtml(p.category)}</p>`,
+        shipping: `<p><strong>Shipping:</strong> Free across Pakistan on orders over ₨ 3,000. Standard delivery 2–5 working days.</p>
+                   <p><strong>Returns:</strong> 7-day easy returns. Item must be unworn with original tags.</p>
+                   <p><strong>Payment:</strong> Cash on Delivery or Bank Transfer.</p>`,
+        care: `<p>Hand wash or machine wash on a gentle cycle. Line dry. Iron on medium heat.</p>`
+      };
+      document.querySelectorAll('.pdp-tabs .head button').forEach(b => {
+        b.onclick = () => {
+          document.querySelectorAll('.pdp-tabs .head button').forEach(x => x.classList.toggle('active', x === b));
+          document.getElementById('tab-body').innerHTML = tabBodies[b.dataset.tab] || '';
+        };
+      });
+    },
+
+    /* ----- Cart ----- */
+    viewCart() {
+      const items = Cart.items;
+      if (items.length === 0) {
+        this.el.innerHTML = `
+          <div class="container cart-page">
+            <h1>Your cart</h1>
+            <div class="plp-empty">
+              <p style="font-size:16px; margin-bottom:16px;">Your cart is empty.</p>
+              <button class="btn btn-accent" data-route="shop">Browse products</button>
+              <button class="btn btn-ghost" style="margin-left:8px;" data-route="home">Back to home</button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+      const lines = items.map(i => {
+        const p = Products.get(i.productId);
+        if (!p) return '';
+        return `<div class="cart-item">
+          <div class="img">${imageOrFallback((p.images||[])[0], p.name, 200)}</div>
+          <div class="meta">
+            <div class="name">${escapeHtml(p.name)}</div>
+            <div class="sub">${i.variant ? escapeHtml(i.variant) + ' · ' : ''}Unit: ${fmtMoney(p.price)}</div>
+            <div class="qty" style="margin-top:8px;">
+              <button onclick="atelier.Cart.setQty('${i.key}', ${i.qty - 1}); atelier.Store.render();">−</button>
+              <input value="${i.qty}" onchange="atelier.Cart.setQty('${i.key}', Math.max(1, +this.value || 1)); atelier.Store.render();">
+              <button onclick="atelier.Cart.setQty('${i.key}', ${i.qty + 1}); atelier.Store.render();">+</button>
+            </div>
+          </div>
+          <div class="price-col">
+            <span class="price">${fmtMoney(p.price * i.qty)}</span>
+            <button class="rm" onclick="atelier.Cart.remove('${i.key}'); atelier.Store.render();">Remove</button>
+          </div>
+        </div>`;
+      }).join('');
+
+      const subtotal = Cart.subtotal();
+      const shipping = Cart.shipping();
+      const total = Cart.total();
+
+      this.el.innerHTML = `
+        <div class="container cart-page">
+          <h1>Your cart</h1>
+          <div class="cart-layout">
+            <div>${lines}</div>
+            <aside class="cart-summary">
+              <h3>Order summary</h3>
+              <div class="line"><span>Subtotal</span><strong>${fmtMoney(subtotal)}</strong></div>
+              <div class="line"><span>Shipping</span><strong>${shipping === 0 ? 'Free' : fmtMoney(shipping)}</strong></div>
+              <div class="ship-note">${shipping === 0 ? '✓ You qualified for free shipping!' : `Add ${fmtMoney(3000 - subtotal)} more for free shipping.`}</div>
+              <div class="line total"><span>Total</span><span>${fmtMoney(total)}</span></div>
+              <button class="btn btn-accent btn-block" style="margin-top:14px;" onclick="atelier.navigate('checkout')">Proceed to checkout</button>
+              <button class="btn btn-ghost btn-block" style="margin-top:8px;" data-route="shop">Continue shopping</button>
+            </aside>
+          </div>
+        </div>
+      `;
+    },
+
+    /* ----- Checkout ----- */
+    viewCheckout() {
+      if (Cart.items.length === 0) { navigate('cart'); return; }
+      const state = this._checkout = this._checkout || { step: 1, info: {}, ship: {}, pay: 'cod' };
+
+      const renderStep = () => {
+        const stepsEl = document.getElementById('ck-steps');
+        stepsEl.innerHTML = stepBlock(1, 'Customer information', state.step, `
+          <div class="form-row">
+            <div class="field"><label class="label">Full name *</label><input class="input" id="ci-name" value="${escapeHtml(state.info.name||'')}"></div>
+            <div class="field"><label class="label">Phone *</label><input class="input" id="ci-phone" value="${escapeHtml(state.info.phone||'')}" placeholder="03XX-XXXXXXX"></div>
+          </div>
+          <div class="field"><label class="label">Email</label><input class="input" id="ci-email" value="${escapeHtml(state.info.email||'')}" type="email"></div>
+          <div class="step-actions">
+            <button class="btn btn-ghost" data-route="cart">← Back to cart</button>
+            <button class="btn btn-accent" id="ci-next">Continue to shipping →</button>
+          </div>
+        `);
+        stepsEl.innerHTML += stepBlock(2, 'Shipping address', state.step, `
+          <div class="field"><label class="label">Full address *</label><input class="input" id="sh-addr" value="${escapeHtml(state.ship.address||'')}" placeholder="House, street, area"></div>
+          <div class="form-row">
+            <div class="field"><label class="label">City *</label>
+              <select class="select" id="sh-city">
+                ${['Lahore','Karachi','Islamabad','Rawalpindi','Faisalabad','Multan','Peshawar','Quetta','Sialkot','Gujranwala','Other'].map(c => `<option ${state.ship.city===c?'selected':''}>${c}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field"><label class="label">Province *</label>
+              <select class="select" id="sh-prov">
+                ${['Punjab','Sindh','Khyber Pakhtunkhwa','Balochistan','Islamabad Capital Territory','Gilgit-Baltistan','Azad Kashmir'].map(c => `<option ${state.ship.province===c?'selected':''}>${c}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label class="label">Postal code</label><input class="input" id="sh-pc" value="${escapeHtml(state.ship.postal||'')}"></div>
+            <div class="field"><label class="label">Country</label><input class="input" value="Pakistan" disabled></div>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-ghost" id="sh-back">← Back</button>
+            <button class="btn btn-accent" id="sh-next">Review order →</button>
+          </div>
+        `, 2);
+        stepsEl.innerHTML += stepBlock(3, 'Review &amp; payment', state.step, `
+          <div style="background:#fafafa; padding:14px; border-radius:var(--r-md); margin-bottom:14px;">
+            <strong>Ship to:</strong> ${escapeHtml(state.info.name||'—')}, ${escapeHtml(state.ship.address||'—')}, ${escapeHtml(state.ship.city||'—')}, ${escapeHtml(state.ship.province||'—')}
+          </div>
+          <h4 style="margin:0 0 8px;">Payment method</h4>
+          <div class="pay-option ${state.pay==='cod'?'active':''}" data-pay="cod">
+            <span class="ic">💵</span>
+            <div><strong>Cash on Delivery</strong><div style="font-size:12px; color:var(--store-muted);">Pay when your order arrives.</div></div>
+          </div>
+          <div class="pay-option ${state.pay==='bank'?'active':''}" data-pay="bank">
+            <span class="ic">🏦</span>
+            <div><strong>Bank Transfer</strong><div style="font-size:12px; color:var(--store-muted);">IBAN details shared after order.</div></div>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-ghost" id="rv-back">← Back</button>
+            <button class="btn btn-accent" id="place-order">Place order</button>
+          </div>
+        `, 3);
+
+        // Bind step 1
+        if (state.step >= 1) {
+          const next1 = document.getElementById('ci-next');
+          if (next1) next1.onclick = () => {
+            const name = document.getElementById('ci-name').value.trim();
+            const phone = document.getElementById('ci-phone').value.trim();
+            if (!name || !phone) { toast('Name and phone are required', 'error'); return; }
+            state.info.name = name;
+            state.info.phone = phone;
+            state.info.email = document.getElementById('ci-email').value.trim();
+            state.step = 2; renderStep();
+          };
+        }
+        // Bind step 2
+        if (state.step >= 2) {
+          const next2 = document.getElementById('sh-next');
+          const back2 = document.getElementById('sh-back');
+          if (next2) next2.onclick = () => {
+            const addr = document.getElementById('sh-addr').value.trim();
+            if (!addr) { toast('Shipping address is required', 'error'); return; }
+            state.ship.address = addr;
+            state.ship.city = document.getElementById('sh-city').value;
+            state.ship.province = document.getElementById('sh-prov').value;
+            state.ship.postal = document.getElementById('sh-pc').value.trim();
+            state.step = 3; renderStep();
+          };
+          if (back2) back2.onclick = () => { state.step = 1; renderStep(); };
+        }
+        // Bind step 3
+        if (state.step >= 3) {
+          document.querySelectorAll('.pay-option').forEach(o => o.onclick = () => {
+            state.pay = o.dataset.pay;
+            document.querySelectorAll('.pay-option').forEach(x => x.classList.toggle('active', x === o));
+          });
+          const back3 = document.getElementById('rv-back');
+          if (back3) back3.onclick = () => { state.step = 2; renderStep(); };
+          const place = document.getElementById('place-order');
+          if (place) place.onclick = () => this.placeOrder();
+        }
+      };
+
+      const orderSummary = `
+        <aside class="cart-summary">
+          <h3>Order summary</h3>
+          ${Cart.items.map(i => {
+            const p = Products.get(i.productId);
+            if (!p) return '';
+            return `<div class="line"><span>${escapeHtml(p.name)} × ${i.qty}</span><strong>${fmtMoney(p.price * i.qty)}</strong></div>`;
+          }).join('')}
+          <div class="line" style="border-top:1px solid var(--store-line); margin-top:8px; padding-top:10px;"><span>Subtotal</span><strong>${fmtMoney(Cart.subtotal())}</strong></div>
+          <div class="line"><span>Shipping</span><strong>${Cart.shipping() === 0 ? 'Free' : fmtMoney(Cart.shipping())}</strong></div>
+          <div class="line total"><span>Total</span><span>${fmtMoney(Cart.total())}</span></div>
+        </aside>
+      `;
+
+      this.el.innerHTML = `
+        <div class="container checkout-page">
+          <h1>Checkout</h1>
+          <div class="checkout-layout">
+            <div id="ck-steps"></div>
+            ${orderSummary}
+          </div>
+        </div>
+      `;
+      renderStep();
+    },
+
+    placeOrder() {
+      const c = this._checkout;
+      const subtotal = Cart.subtotal();
+      const shipping = Cart.shipping();
+      const total = Cart.total();
+      const order = {
+        id: 'ATL-' + Date.now().toString().slice(-6) + Math.floor(Math.random()*99),
+        createdAt: Date.now(),
+        status: 'received',
+        items: Cart.items.map(i => {
+          const p = Products.get(i.productId);
+          return { productId: i.productId, name: p ? p.name : 'Item', variant: i.variant, qty: i.qty, price: p ? p.price : 0, image: p ? (p.images||[])[0] : null };
+        }),
+        customer: { name: c.info.name, phone: c.info.phone, email: c.info.email || '' },
+        ship: c.ship,
+        payment: c.pay,
+        subtotal, shipping, total
+      };
+      data.orders.unshift(order);
+      // Update / cache customer
+      const existing = data.customers.find(x => x.phone === order.customer.phone);
+      if (existing) { existing.totalOrders += 1; existing.totalSpent += order.total; existing.lastOrderAt = order.createdAt; }
+      else data.customers.unshift({ id: 'c_' + uid(), name: order.customer.name, phone: order.customer.phone, email: order.customer.email, totalOrders: 1, totalSpent: order.total, joinedAt: order.createdAt, lastOrderAt: order.createdAt });
+      // Decrease stock for each item
+      order.items.forEach(i => {
+        const p = Products.get(i.productId);
+        if (p) p.stock = Math.max(0, (p.stock || 0) - i.qty);
+      });
+      saveData();
+      Cart.clear();
+      this._checkout = null;
+      emit('products:changed');   // so PDP/PLP/admin reflect new stock
+      emit('order:placed', order);
+      navigate('confirm', { id: order.id });
+    },
+
+    /* ----- Order confirmation ----- */
+    viewConfirm({ id }) {
+      const order = data.orders.find(o => o.id === id);
+      const html = `
+        <div class="container confirm">
+          <div class="ok">✓</div>
+          <h1>Order placed!</h1>
+          <p style="color:var(--store-muted);">Thank you — we'll be in touch shortly.</p>
+          <div class="oid">Order #${escapeHtml(id || '')}</div>
+          ${order ? `
+            <div class="summary-card">
+              <h3 style="margin:0 0 12px;">Order details</h3>
+              ${order.items.map(i => `<div class="line" style="display:flex; justify-content:space-between; padding:6px 0; font-size:14px;"><span>${escapeHtml(i.name)}${i.variant ? ' · ' + escapeHtml(i.variant) : ''} × ${i.qty}</span><strong>${fmtMoney(i.price * i.qty)}</strong></div>`).join('')}
+              <div class="line" style="display:flex; justify-content:space-between; border-top:1px solid var(--store-line); margin-top:8px; padding-top:10px; font-weight:700;"><span>Total</span><span>${fmtMoney(order.total)}</span></div>
+              <div style="margin-top:12px; font-size:13px; color:var(--store-muted);">Payment: ${order.payment === 'cod' ? 'Cash on Delivery' : 'Bank Transfer'}</div>
+            </div>
+          ` : ''}
+          <div style="margin-top:24px;">
+            <button class="btn btn-accent" data-route="shop">Continue shopping</button>
+          </div>
+        </div>
+      `;
+      this.el.innerHTML = html;
+    }
+  };
+
+  // helper: step block
+  function stepBlock(n, title, current, body, target) {
+    target = target || n;
+    const isDone = current > target;
+    const isActive = current === target;
+    return `
+      <div class="checkout-step" style="${isActive ? '' : 'opacity:.6;'}">
+        <div class="step-head">
+          <div class="step-num ${isDone ? 'done' : ''}">${isDone ? '✓' : n}</div>
+          <div class="step-title">${title}</div>
+        </div>
+        ${isActive ? body : ''}
+      </div>
+    `;
+  }
+
+  // helper: product card
+  function productCardHtml(p) {
+    const hasSale = p.compareAt && p.compareAt > p.price;
+    const discount = hasSale ? Math.round((1 - p.price / p.compareAt) * 100) : 0;
+    return `
+      <div class="product-card" data-pdp="${p.id}">
+        <div class="img-wrap">${imageOrFallback((p.images||[])[0], p.name, 400)}${hasSale ? `<span class="badge-disc" style="position:absolute; top:10px; left:10px;">-${discount}%</span>` : ''}</div>
+        <div class="info">
+          <div class="cat">${escapeHtml(p.category)}</div>
+          <div class="name">${escapeHtml(p.name)}</div>
+          <div class="price-row">
+            <span class="price">${fmtMoney(p.price)}</span>
+            ${hasSale ? `<span class="compare">${fmtMoney(p.compareAt)}</span>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Initial render
+  Store.render();
+  syncNavActive();
+
+  /* ============================================================
+     ADMIN PANEL
+     ============================================================ */
+
+  /* ---------- Orders module ---------- */
+  const Orders = {
+    all() { return data.orders.slice(); },
+    get(id) { return data.orders.find(o => o.id === id); },
+    byStatus(s) { return this.all().filter(o => o.status === s); },
+    setStatus(id, status) {
+      const o = this.get(id);
+      if (!o) return;
+      o.status = status;
+      o.updatedAt = Date.now();
+      saveData();
+      emit('orders:changed');
+    },
+    remove(id) {
+      data.orders = data.orders.filter(o => o.id !== id);
+      saveData();
+      emit('orders:changed');
+    },
+    /* Analytics */
+    revenue(filter = () => true) {
+      return data.orders.filter(o => o.status !== 'cancelled' && filter(o))
+        .reduce((sum, o) => sum + o.total, 0);
+    },
+    counts() {
+      const c = { received: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0 };
+      data.orders.forEach(o => { if (c[o.status] !== undefined) c[o.status]++; });
+      return c;
+    },
+    topProducts(limit = 5) {
+      const tally = {};
+      data.orders.filter(o => o.status !== 'cancelled').forEach(o => {
+        o.items.forEach(i => {
+          if (!tally[i.productId]) tally[i.productId] = { qty: 0, revenue: 0 };
+          tally[i.productId].qty += i.qty;
+          tally[i.productId].revenue += i.qty * i.price;
+        });
+      });
+      return Object.entries(tally)
+        .map(([pid, v]) => ({ product: Products.get(pid), ...v }))
+        .filter(x => x.product)
+        .sort((a, b) => b.qty - a.qty)
+        .slice(0, limit);
+    }
+  };
+
+  /* ---------- Customers module ---------- */
+  const Customers = {
+    all() { return data.customers.slice(); },
+    get(id) { return data.customers.find(c => c.id === id); },
+    byPhone(phone) { return data.customers.find(c => c.phone === phone); },
+    history(customerId) {
+      const c = this.get(customerId);
+      if (!c) return [];
+      return data.orders.filter(o => o.customer.phone === c.phone);
+    }
+  };
+
+  /* ---------- Admin router ---------- */
+  let adminRoute = 'dashboard';
+  function navigateAdmin(name) {
+    adminRoute = name;
+    document.querySelectorAll('#admin-nav button').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+    document.getElementById('admin-page-title').textContent = name.charAt(0).toUpperCase() + name.slice(1);
+    Admin.render();
+  }
+  document.getElementById('admin-nav').addEventListener('click', e => {
+    const b = e.target.closest('button[data-view]');
+    if (!b) return;
+    navigateAdmin(b.dataset.view);
+  });
+
+  // Mobile menu toggle
+  document.getElementById('admin-menu-btn').onclick = () => document.getElementById('admin-sidebar').classList.toggle('open');
+  if (window.innerWidth < 769) document.getElementById('admin-menu-btn').style.display = 'inline-flex';
+  window.addEventListener('resize', () => {
+    document.getElementById('admin-menu-btn').style.display = window.innerWidth < 769 ? 'inline-flex' : 'none';
+  });
+
+  // Live update hook: when new order placed, if admin is open, refresh the current view's data
+  on('order:placed', (order) => {
+    if (data.view === 'admin') {
+      toast(`New order: ${order.id} (${fmtMoney(order.total)})`, 'success');
+      Admin.render();
+    }
+  });
+  on('orders:changed', () => { if (data.view === 'admin') Admin.render(); });
+  on('products:changed', () => { if (data.view === 'admin') Admin.render(); });
+
+  /* ---------- Admin views ---------- */
+  const Admin = {
+    el: document.getElementById('admin-view'),
+    render() {
+      if (adminRoute === 'dashboard') return this.viewDashboard();
+      if (adminRoute === 'orders')    return this.viewOrders();
+      if (adminRoute === 'products')  return this.viewProducts();
+      if (adminRoute === 'customers') return this.viewCustomers();
+      if (adminRoute === 'settings')  return this.viewSettings();
+    },
+
+    /* ====== Dashboard ====== */
+    viewDashboard() {
+      const counts = Orders.counts();
+      const isToday = (ts) => {
+        const d = new Date(ts);
+        const now = new Date();
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+      };
+      const isThisMonth = (ts) => {
+        const d = new Date(ts);
+        const now = new Date();
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      };
+
+      const revAll  = Orders.revenue();
+      const revMon  = Orders.revenue(o => isThisMonth(o.createdAt));
+      const revDay  = Orders.revenue(o => isToday(o.createdAt));
+      const totalOrders = data.orders.length;
+
+      // Recent orders
+      const recent = data.orders.slice(0, 7);
+      // Top products
+      const top = Orders.topProducts(5);
+      // Visitors/conversion (mock)
+      const visitors = 1240 + Math.floor(Math.random() * 200);
+      const conversion = data.orders.length === 0 ? 0 : ((data.orders.length / visitors) * 100).toFixed(1);
+
+      this.el.innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span class="ic">💰</span>
+            <div class="lbl">Total revenue</div>
+            <div class="val">${fmtMoney(revAll)}</div>
+            <div class="sub">This month: ${fmtMoney(revMon)} · Today: ${fmtMoney(revDay)}</div>
+          </div>
+          <div class="stat-card">
+            <span class="ic">📦</span>
+            <div class="lbl">Total orders</div>
+            <div class="val">${totalOrders}</div>
+            <div class="sub">${counts.received} pending · ${counts.processing} processing · ${counts.shipped} shipped · ${counts.delivered} delivered</div>
+          </div>
+          <div class="stat-card">
+            <span class="ic">👕</span>
+            <div class="lbl">Products</div>
+            <div class="val">${data.products.length}</div>
+            <div class="sub">${data.products.filter(p => p.status === 'active').length} active · ${data.products.filter(p => p.stock < 5).length} low stock</div>
+          </div>
+          <div class="stat-card">
+            <span class="ic">📈</span>
+            <div class="lbl">Conversion rate</div>
+            <div class="val">${conversion}%</div>
+            <div class="sub">${visitors.toLocaleString()} visitors this week</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Revenue (last ${this._chartRange || 7} days)</h3>
+            <div class="chart-toggle" id="chart-toggle">
+              <button class="${(this._chartRange || 7) === 7 ? 'active' : ''}" data-range="7">7 days</button>
+              <button class="${this._chartRange === 30 ? 'active' : ''}" data-range="30">30 days</button>
+            </div>
+          </div>
+          <div class="chart-wrap" id="chart-wrap"></div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1.4fr 1fr; gap:16px;">
+          <div class="panel">
+            <div class="panel-head"><h3>Recent orders</h3><button class="btn btn-ghost btn-sm" data-view="orders" id="view-all-orders">View all →</button></div>
+            <div class="panel-body no-pad">
+              ${recent.length ? `
+                <div class="table-wrap">
+                  <table class="table">
+                    <thead><tr><th>Order</th><th>Customer</th><th>Date</th><th>Total</th><th>Status</th></tr></thead>
+                    <tbody>
+                      ${recent.map(o => `<tr data-order-id="${o.id}" class="order-row" style="cursor:pointer;">
+                        <td><strong>${o.id}</strong></td>
+                        <td>${escapeHtml(o.customer.name)}</td>
+                        <td>${new Date(o.createdAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short' })}</td>
+                        <td>${fmtMoney(o.total)}</td>
+                        <td><span class="st st-${o.status}">${o.status}</span></td>
+                      </tr>`).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              ` : '<div class="empty-state">No orders yet — place one from the Store to see it here.</div>'}
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h3>Top selling products</h3></div>
+            <div class="panel-body">
+              ${top.length ? top.map((t, i) => `
+                <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:${i<top.length-1?'1px solid var(--admin-line)':'none'};">
+                  <div class="thumb-sm">${imageOrFallback((t.product.images||[])[0], t.product.name, 80)}</div>
+                  <div style="flex:1; min-width:0;">
+                    <div style="font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(t.product.name)}</div>
+                    <div style="font-size:12px; color:var(--admin-muted);">${t.qty} sold</div>
+                  </div>
+                  <strong style="font-size:13px;">${fmtMoney(t.revenue)}</strong>
+                </div>
+              `).join('') : '<div class="empty-state">No sales yet.</div>'}
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Chart
+      this.renderChart(this._chartRange || 7);
+
+      // Bind chart toggle
+      document.getElementById('chart-toggle').addEventListener('click', e => {
+        const b = e.target.closest('button[data-range]');
+        if (!b) return;
+        this._chartRange = Number(b.dataset.range);
+        this.viewDashboard();
+      });
+
+      // Click recent order → open detail
+      this.el.querySelectorAll('.order-row').forEach(row => {
+        row.onclick = () => openOrderDetail(row.dataset.orderId);
+      });
+      const v = document.getElementById('view-all-orders');
+      if (v) v.onclick = () => navigateAdmin('orders');
+    },
+
+    renderChart(days) {
+      const wrap = document.getElementById('chart-wrap');
+      if (!wrap) return;
+      // Skeleton briefly to avoid layout jump
+      wrap.innerHTML = '<div class="skeleton" style="width:100%; height:240px;"></div>';
+      setTimeout(() => {
+        const buckets = [];
+        const now = new Date();
+        for (let i = days - 1; i >= 0; i--) {
+          const d = new Date(now); d.setDate(now.getDate() - i);
+          const key = d.toISOString().slice(0, 10);
+          const dayOrders = data.orders.filter(o => {
+            if (o.status === 'cancelled') return false;
+            return new Date(o.createdAt).toISOString().slice(0, 10) === key;
+          });
+          buckets.push({
+            label: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+            value: dayOrders.reduce((s, o) => s + o.total, 0)
+          });
+        }
+        const max = Math.max(1, ...buckets.map(b => b.value));
+        const w = 800, h = 240, padL = 50, padB = 30, padT = 10, padR = 10;
+        const innerW = w - padL - padR, innerH = h - padT - padB;
+        const barW = innerW / buckets.length * 0.7;
+        const gap = innerW / buckets.length * 0.3;
+        const bars = buckets.map((b, i) => {
+          const x = padL + i * (barW + gap) + gap / 2;
+          const barH = (b.value / max) * innerH;
+          const y = padT + innerH - barH;
+          return `
+            <g>
+              <rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="4" fill="var(--admin-accent)" opacity="0.85"/>
+              <text x="${x + barW/2}" y="${h - 8}" text-anchor="middle" font-size="10" fill="#64748b">${b.label}</text>
+              ${b.value > 0 ? `<text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" font-size="10" fill="#0f172a" font-weight="600">${b.value >= 1000 ? Math.round(b.value/1000) + 'k' : b.value}</text>` : ''}
+            </g>`;
+        }).join('');
+      // Y axis grid
+      const ticks = 4;
+        const grid = Array.from({ length: ticks + 1 }, (_, i) => {
+          const y = padT + (innerH / ticks) * i;
+          const val = Math.round((max - (max / ticks) * i) / 1000 * (max >= 1000 ? 1 : 1));
+          return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="#e5e7eb" stroke-dasharray="2 4"/>
+                  <text x="${padL - 6}" y="${y + 3}" text-anchor="end" font-size="10" fill="#64748b">${max >= 1000 ? Math.round((max - (max/ticks)*i)/1000)+'k' : Math.round(max - (max/ticks)*i)}</text>`;
+        }).join('');
+        wrap.innerHTML = `<svg class="chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${grid}${bars}</svg>`;
+      }, 200);
+    },
+
+    /* ====== Orders ====== */
+    viewOrders() {
+      this._orderFilters = this._orderFilters || { status: 'all', q: '', from: '', to: '' };
+      const f = this._orderFilters;
+
+      const apply = () => {
+        let list = data.orders.slice();
+        if (f.status && f.status !== 'all') list = list.filter(o => o.status === f.status);
+        if (f.q) {
+          const q = f.q.toLowerCase();
+          list = list.filter(o => o.id.toLowerCase().includes(q) || o.customer.name.toLowerCase().includes(q));
+        }
+        if (f.from) list = list.filter(o => o.createdAt >= new Date(f.from).getTime());
+        if (f.to)   list = list.filter(o => o.createdAt <= new Date(f.to).getTime() + 86400000);
+        list.sort((a, b) => b.createdAt - a.createdAt);
+
+        body.innerHTML = list.length ? `
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr>
+                <th>Order</th><th>Customer</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th><th>Actions</th>
+              </tr></thead>
+              <tbody>
+                ${list.map(o => `<tr>
+                  <td><a href="#" data-order-detail="${o.id}" style="font-weight:600; color:var(--admin-accent);">${o.id}</a></td>
+                  <td>${escapeHtml(o.customer.name)}<div style="font-size:11px; color:var(--admin-muted);">${escapeHtml(o.customer.phone)}</div></td>
+                  <td>${new Date(o.createdAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' })}</td>
+                  <td>${o.items.length}</td>
+                  <td><strong>${fmtMoney(o.total)}</strong></td>
+                  <td><span class="st st-${o.status}">${o.status}</span></td>
+                  <td>
+                    <select class="select" data-status-for="${o.id}" style="width:auto; padding:4px 8px; font-size:12px;">
+                      <option value="received"   ${o.status==='received'?'selected':''}>Order Received</option>
+                      <option value="processing" ${o.status==='processing'?'selected':''}>Processing</option>
+                      <option value="shipped"    ${o.status==='shipped'?'selected':''}>Shipped</option>
+                      <option value="delivered"  ${o.status==='delivered'?'selected':''}>Delivered</option>
+                      <option value="cancelled"  ${o.status==='cancelled'?'selected':''}>Cancelled</option>
+                    </select>
+                    <button class="btn btn-ghost btn-sm" data-del-order="${o.id}">Delete</button>
+                  </td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : '<div class="empty-state">No orders found.</div>';
+
+        // Wire up
+        body.querySelectorAll('[data-order-detail]').forEach(a => a.onclick = e => { e.preventDefault(); openOrderDetail(a.dataset.orderDetail); });
+        body.querySelectorAll('[data-status-for]').forEach(s => s.onchange = e => {
+          Orders.setStatus(s.dataset.statusFor, e.target.value);
+          toast('Status updated');
+        });
+        body.querySelectorAll('[data-del-order]').forEach(b => b.onclick = e => confirmDeleteOrder(b.dataset.delOrder));
+      };
+
+      this.el.innerHTML = `
+        <div class="panel">
+          <div class="panel-head">
+            <h3>All orders</h3>
+            <div class="toolbar">
+              <select class="select" id="f-status" style="width:auto;">
+                <option value="all" ${f.status==='all'?'selected':''}>All statuses</option>
+                <option value="received" ${f.status==='received'?'selected':''}>Order Received</option>
+                <option value="processing" ${f.status==='processing'?'selected':''}>Processing</option>
+                <option value="shipped" ${f.status==='shipped'?'selected':''}>Shipped</option>
+                <option value="delivered" ${f.status==='delivered'?'selected':''}>Delivered</option>
+                <option value="cancelled" ${f.status==='cancelled'?'selected':''}>Cancelled</option>
+              </select>
+              <input class="input" type="date" id="f-from" value="${f.from}">
+              <input class="input" type="date" id="f-to" value="${f.to}">
+              <input class="input" id="f-q" placeholder="Search ID or name" value="${escapeHtml(f.q)}" style="min-width:180px;">
+            </div>
+          </div>
+          <div class="panel-body no-pad" id="orders-body"></div>
+        </div>
+      `;
+      const body = document.getElementById('orders-body');
+      document.getElementById('f-status').onchange = e => { f.status = e.target.value; apply(); };
+      document.getElementById('f-from').onchange = e => { f.from = e.target.value; apply(); };
+      document.getElementById('f-to').onchange   = e => { f.to = e.target.value; apply(); };
+      document.getElementById('f-q').oninput     = e => { f.q = e.target.value; apply(); };
+      apply();
+    },
+
+    /* ====== Products ====== */
+    viewProducts() {
+      this.el.innerHTML = `
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Products (${data.products.length})</h3>
+            <button class="btn btn-accent" id="add-prod">+ Add product</button>
+          </div>
+          <div class="panel-body no-pad">
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr>
+                  <th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th>
+                </tr></thead>
+                <tbody>
+                  ${data.products.length ? data.products.map(p => `
+                    <tr>
+                      <td>
+                        <div class="product-row-name">
+                          <div class="thumb-sm">${imageOrFallback((p.images||[])[0], p.name, 80)}</div>
+                          <div>
+                            <div style="font-weight:600;">${escapeHtml(p.name)}</div>
+                            <div style="font-size:11px; color:var(--admin-muted);">${p.id}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>${escapeHtml(p.category)}</td>
+                      <td>${fmtMoney(p.price)}${p.compareAt ? ` <span style="text-decoration:line-through; color:var(--admin-muted); font-size:11px;">${fmtMoney(p.compareAt)}</span>` : ''}</td>
+                      <td>${p.stock < 5 ? `<span style="color:var(--store-danger); font-weight:700;">${p.stock}</span>` : p.stock}</td>
+                      <td><span class="st st-${p.status === 'active' ? 'delivered' : 'received'}">${p.status}</span></td>
+                      <td>
+                        <button class="btn btn-ghost btn-sm" data-edit-prod="${p.id}">Edit</button>
+                        <button class="btn btn-ghost btn-sm" data-del-prod="${p.id}">Delete</button>
+                      </td>
+                    </tr>
+                  `).join('') : `<tr><td colspan="6"><div class="empty-state">No products yet. Click "+ Add product" to start.</div></td></tr>`}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById('add-prod').onclick = () => openProductForm();
+      this.el.querySelectorAll('[data-edit-prod]').forEach(b => b.onclick = () => openProductForm(b.dataset.editProd));
+      this.el.querySelectorAll('[data-del-prod]').forEach(b => b.onclick = () => confirmDeleteProduct(b.dataset.delProd));
+    },
+
+    /* ====== Customers ====== */
+    viewCustomers() {
+      this._custSearch = this._custSearch || '';
+      const f = this._custSearch;
+      let list = data.customers.slice();
+      if (f) {
+        const q = f.toLowerCase();
+        list = list.filter(c => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || c.phone.includes(q));
+      }
+      list.sort((a, b) => (b.lastOrderAt || b.joinedAt) - (a.lastOrderAt || a.joinedAt));
+      this.el.innerHTML = `
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Customers (${data.customers.length})</h3>
+            <input class="input" id="cust-q" placeholder="Search customers..." value="${escapeHtml(f)}" style="max-width:260px;">
+          </div>
+          <div class="panel-body no-pad">
+            ${list.length ? `<div class="table-wrap"><table class="table">
+              <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Orders</th><th>Total spent</th><th>Joined</th></tr></thead>
+              <tbody>
+                ${list.map(c => `<tr data-cust="${c.id}" style="cursor:pointer;">
+                  <td><strong>${escapeHtml(c.name)}</strong></td>
+                  <td>${escapeHtml(c.email || '—')}</td>
+                  <td>${escapeHtml(c.phone)}</td>
+                  <td>${c.totalOrders}</td>
+                  <td><strong>${fmtMoney(c.totalSpent)}</strong></td>
+                  <td>${new Date(c.joinedAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table></div>` : '<div class="empty-state">No customers yet.</div>'}
+          </div>
+        </div>
+      `;
+      const q = document.getElementById('cust-q');
+      if (q) q.oninput = e => { this._custSearch = e.target.value; this.viewCustomers(); };
+      this.el.querySelectorAll('[data-cust]').forEach(r => r.onclick = () => openCustomerDetail(r.dataset.cust));
+    },
+
+    /* ====== Settings ====== */
+    viewSettings() {
+      const s = data.settings;
+      this.el.innerHTML = `
+        <div class="settings-section">
+          <h3>Store information</h3>
+          <div class="form-grid">
+            <div class="field"><label class="label">Store name</label><input class="input" id="s-name" value="${escapeHtml(s.storeName)}"></div>
+            <div class="field"><label class="label">Contact email</label><input class="input" type="email" id="s-email" value="${escapeHtml(s.storeEmail)}"></div>
+            <div class="field"><label class="label">Store address</label><input class="input" id="s-addr" value="${escapeHtml(s.address)}"></div>
+            <div class="field"><label class="label">Currency code</label>
+              <select class="select" id="s-cur">
+                <option value="PKR" ${s.currency==='PKR'?'selected':''}>PKR — Pakistani Rupee (₨)</option>
+                <option value="USD" ${s.currency==='USD'?'selected':''}>USD — US Dollar ($)</option>
+                <option value="EUR" ${s.currency==='EUR'?'selected':''}>EUR — Euro (€)</option>
+                <option value="GBP" ${s.currency==='GBP'?'selected':''}>GBP — British Pound (£)</option>
+                <option value="AED" ${s.currency==='AED'?'selected':''}>AED — UAE Dirham (د.إ)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>Notifications</h3>
+          <div class="toggle-row">
+            <div><strong>New order alerts</strong><div style="font-size:12px; color:var(--admin-muted);">Show a toast when a customer places an order.</div></div>
+            <label class="toggle"><input type="checkbox" id="s-notify-order" ${s.notifyNewOrder?'checked':''}><span></span></label>
+          </div>
+          <div class="toggle-row">
+            <div><strong>Low-stock warnings</strong><div style="font-size:12px; color:var(--admin-muted);">Highlight products with stock below 5.</div></div>
+            <label class="toggle"><input type="checkbox" id="s-notify-stock" ${s.notifyLowStock?'checked':''}><span></span></label>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>Data</h3>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-ghost" id="s-reset">Reset sample data</button>
+            <button class="btn btn-ghost" id="s-export">Export JSON</button>
+            <button class="btn btn-ghost" id="s-import">Import JSON</button>
+            <button class="btn btn-danger" id="s-wipe">Clear all data</button>
+            <input type="file" id="s-file" accept="application/json" style="display:none;">
+          </div>
+        </div>
+      `;
+      document.getElementById('s-name').onchange = e => { data.settings.storeName = e.target.value; saveData(); toast('Saved'); };
+      document.getElementById('s-email').onchange = e => { data.settings.storeEmail = e.target.value; saveData(); toast('Saved'); };
+      document.getElementById('s-addr').onchange = e => { data.settings.address = e.target.value; saveData(); toast('Saved'); };
+      document.getElementById('s-cur').onchange = e => {
+        data.settings.currency = e.target.value;
+        data.settings.currencySymbol = ({ PKR:'₨', USD:'$', EUR:'€', GBP:'£', AED:'د.إ' })[e.target.value] || '₨';
+        saveData(); toast('Currency updated'); if (data.view === 'store') Store.render(); else this.viewSettings();
+      };
+      document.getElementById('s-notify-order').onchange = e => { data.settings.notifyNewOrder = e.target.checked; saveData(); };
+      document.getElementById('s-notify-stock').onchange = e => { data.settings.notifyLowStock = e.target.checked; saveData(); };
+      document.getElementById('s-reset').onclick = () => {
+        if (confirm('Reset products and orders to sample data?')) {
+          localStorage.removeItem(STORAGE_KEY);
+          location.reload();
+        }
+      };
+      document.getElementById('s-export').onclick = () => {
+        const blob = new Blob([JSON.stringify({...data, cart:undefined}, null, 2)], { type:'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'atelierpk-data.json'; a.click();
+        URL.revokeObjectURL(url);
+      };
+      document.getElementById('s-import').onclick = () => document.getElementById('s-file').click();
+      document.getElementById('s-file').onchange = e => {
+        const f = e.target.files[0]; if (!f) return;
+        const r = new FileReader();
+        r.onload = ev => {
+          try { Object.assign(data, JSON.parse(ev.target.result)); saveData(); toast('Imported', 'success'); location.reload(); }
+          catch (err) { toast('Invalid JSON', 'error'); }
+        };
+        r.readAsText(f);
+      };
+      document.getElementById('s-wipe').onclick = () => {
+        if (confirm('Permanently delete ALL data? This cannot be undone.')) {
+          localStorage.clear();
+          location.reload();
+        }
+      };
+    }
+  };
+
+  /* ---------- Order detail modal ---------- */
+  function openOrderDetail(orderId) {
+    const o = Orders.get(orderId);
+    if (!o) return;
+    const body = `
+      <div class="order-detail">
+        <div>
+          <h4 style="margin:0 0 10px;">Items</h4>
+          <div class="table-wrap">
+            <table class="table items-table">
+              <thead><tr><th></th><th>Item</th><th>Qty</th><th>Total</th></tr></thead>
+              <tbody>
+                ${o.items.map(i => `<tr>
+                  <td><div class="thumb-sm">${imageOrFallback(i.image, i.name, 80)}</div></td>
+                  <td><div style="font-weight:600;">${escapeHtml(i.name)}</div><div style="font-size:12px; color:var(--admin-muted);">${escapeHtml(i.variant || '')}</div></td>
+                  <td>${i.qty}</td>
+                  <td>${fmtMoney(i.price * i.qty)}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--admin-line);">
+            <div class="line" style="display:flex; justify-content:space-between; padding:4px 0;"><span>Subtotal</span><strong>${fmtMoney(o.subtotal)}</strong></div>
+            <div class="line" style="display:flex; justify-content:space-between; padding:4px 0;"><span>Shipping</span><strong>${o.shipping === 0 ? 'Free' : fmtMoney(o.shipping)}</strong></div>
+            <div class="line" style="display:flex; justify-content:space-between; padding:4px 0; font-size:16px; font-weight:700; border-top:1px solid var(--admin-line); margin-top:6px;"><span>Total</span><span>${fmtMoney(o.total)}</span></div>
+          </div>
+        </div>
+        <div>
+          <h4 style="margin:0 0 10px;">Customer</h4>
+          <div class="kv">
+            <div class="k">Name</div><div class="v">${escapeHtml(o.customer.name)}</div>
+            <div class="k">Phone</div><div class="v">${escapeHtml(o.customer.phone)}</div>
+            <div class="k">Email</div><div class="v">${escapeHtml(o.customer.email || '—')}</div>
+          </div>
+          <h4 style="margin:14px 0 10px;">Shipping</h4>
+          <div style="font-size:13px; color:var(--admin-fg);">
+            ${escapeHtml(o.ship.address || '—')}<br>
+            ${escapeHtml(o.ship.city || '')}${o.ship.postal ? ', ' + escapeHtml(o.ship.postal) : ''}<br>
+            ${escapeHtml(o.ship.province || '')}, Pakistan
+          </div>
+          <h4 style="margin:14px 0 10px;">Payment</h4>
+          <div style="font-size:13px;">${o.payment === 'cod' ? '💵 Cash on Delivery' : '🏦 Bank Transfer'}</div>
+          <h4 style="margin:14px 0 10px;">Status</h4>
+          <div class="status-pills" id="order-status-pills">
+            ${['received','processing','shipped','delivered','cancelled'].map(s =>
+              `<button data-st="${s}" class="${o.status===s?'active':''}">${s}</button>`
+            ).join('')}
+          </div>
+          <div style="margin-top:14px; font-size:12px; color:var(--admin-muted);">Placed ${new Date(o.createdAt).toLocaleString('en-GB')}</div>
+        </div>
+      </div>
+    `;
+    modal.open({
+      title: 'Order ' + o.id,
+      body,
+      buttons: [
+        { label: 'Close', variant: 'btn-ghost' }
+      ]
+    });
+    document.getElementById('order-status-pills').addEventListener('click', e => {
+      const b = e.target.closest('button[data-st]'); if (!b) return;
+      Orders.setStatus(o.id, b.dataset.st);
+      openOrderDetail(o.id);
+    });
+  }
+  function confirmDeleteOrder(id) {
+    modal.open({
+      title: 'Delete order ' + id + '?',
+      body: '<p style="color:var(--admin-muted);">This cannot be undone.</p>',
+      buttons: [
+        { label: 'Cancel', variant: 'btn-ghost' },
+        { label: 'Delete', variant: 'btn-danger', onClick: () => { Orders.remove(id); toast('Order deleted'); } }
+      ]
+    });
+  }
+
+  /* ---------- Product form modal ---------- */
+  function openProductForm(id) {
+    const p = id ? Products.get(id) : null;
+    const sizes = p && p.variants && p.variants.sizes ? p.variants.sizes : [];
+    const colors = p && p.variants && p.variants.colors ? p.variants.colors : [];
+
+    const body = `
+      <form id="prod-form">
+        <div class="form-grid">
+          <div class="field full"><label class="label">Product name *</label><input class="input" name="name" required value="${escapeHtml(p?.name || '')}"></div>
+          <div class="field full"><label class="label">Description</label><textarea class="textarea" name="description" rows="3">${escapeHtml(p?.description || '')}</textarea></div>
+          <div class="field"><label class="label">Price *</label><input class="input" type="number" name="price" required value="${p?.price || ''}"></div>
+          <div class="field"><label class="label">Compare-at price</label><input class="input" type="number" name="compareAt" value="${p?.compareAt || ''}"></div>
+          <div class="field"><label class="label">Category</label>
+            <select class="select" name="category">
+              <option value="men" ${p?.category==='men'?'selected':''}>Men</option>
+              <option value="women" ${p?.category==='women'?'selected':''}>Women</option>
+              <option value="accessories" ${p?.category==='accessories'?'selected':''}>Accessories</option>
+            </select>
+          </div>
+          <div class="field"><label class="label">Stock quantity</label><input class="input" type="number" name="stock" value="${p?.stock ?? 0}"></div>
+          <div class="field full"><label class="label">Image URL</label><input class="input" name="image" placeholder="https://..." value="${escapeHtml((p?.images||[])[0] || '')}"><div style="font-size:12px; color:var(--admin-muted); margin-top:4px;">Leave blank to use a color-tile placeholder.</div></div>
+          <div class="field full">
+            <div class="variants-builder">
+              <div class="lbl" style="font-size:13px; font-weight:600; margin-bottom:6px;">Sizes (comma-separated)</div>
+              <input class="input" id="v-sizes" placeholder="S, M, L, XL" value="${sizes.join(', ')}">
+              <div class="lbl" style="font-size:13px; font-weight:600; margin:12px 0 6px;">Colors (comma-separated)</div>
+              <input class="input" id="v-colors" placeholder="Red, Blue" value="${colors.join(', ')}">
+            </div>
+          </div>
+          <div class="field"><label class="label">Status</label>
+            <select class="select" name="status">
+              <option value="active" ${p?.status==='active'?'selected':''}>Active</option>
+              <option value="draft" ${p?.status==='draft'?'selected':''}>Draft</option>
+            </select>
+          </div>
+          <div class="field"><label class="label">Featured</label>
+            <label class="toggle"><input type="checkbox" name="featured" ${p?.featured?'checked':''}><span></span></label>
+          </div>
+        </div>
+      </form>
+    `;
+    modal.open({
+      title: p ? 'Edit product' : 'Add product',
+      body,
+      buttons: [
+        { label: 'Cancel', variant: 'btn-ghost' },
+        { label: p ? 'Save changes' : 'Create product', variant: 'btn-accent', onClick: () => {
+          const f = document.getElementById('prod-form');
+          const fd = new FormData(f);
+          const sizeArr = document.getElementById('v-sizes').value.split(',').map(s => s.trim()).filter(Boolean);
+          const colorArr = document.getElementById('v-colors').value.split(',').map(s => s.trim()).filter(Boolean);
+          const input = {
+            name: fd.get('name'),
+            description: fd.get('description'),
+            price: Number(fd.get('price')),
+            compareAt: fd.get('compareAt') ? Number(fd.get('compareAt')) : null,
+            category: fd.get('category'),
+            stock: Number(fd.get('stock') || 0),
+            images: fd.get('image') ? [fd.get('image')] : [],
+            variants: { sizes: sizeArr, colors: colorArr },
+            status: fd.get('status'),
+            featured: !!f.querySelector('[name=featured]').checked
+          };
+          if (!input.name || !input.price) { toast('Name and price are required', 'error'); return; }
+          if (p) { Products.update(p.id, input); toast('Product updated', 'success'); }
+          else   { Products.create(input); toast('Product created', 'success'); }
+        } }
+      ]
+    });
+  }
+  function confirmDeleteProduct(id) {
+    const p = Products.get(id);
+    modal.open({
+      title: 'Delete product?',
+      body: `<p>“${escapeHtml(p?.name || 'Product')}” will be permanently removed from the store.</p>`,
+      buttons: [
+        { label: 'Cancel', variant: 'btn-ghost' },
+        { label: 'Delete', variant: 'btn-danger', onClick: () => { Products.remove(id); toast('Product deleted'); } }
+      ]
+    });
+  }
+
+  /* ---------- Customer detail modal ---------- */
+  function openCustomerDetail(id) {
+    const c = Customers.get(id);
+    if (!c) return;
+    const orders = Customers.history(id).sort((a,b) => b.createdAt - a.createdAt);
+    const body = `
+      <div class="customer-summary" style="margin-bottom:20px;">
+        <div><div style="font-size:11px; color:var(--admin-muted); text-transform:uppercase;">Total orders</div><div style="font-size:20px; font-weight:700;">${c.totalOrders}</div></div>
+        <div><div style="font-size:11px; color:var(--admin-muted); text-transform:uppercase;">Total spent</div><div style="font-size:20px; font-weight:700;">${fmtMoney(c.totalSpent)}</div></div>
+        <div><div style="font-size:11px; color:var(--admin-muted); text-transform:uppercase;">Customer since</div><div style="font-size:14px; font-weight:600;">${new Date(c.joinedAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}</div></div>
+      </div>
+      <h4 style="margin:0 0 10px;">Contact</h4>
+      <div class="kv">
+        <div class="k">Name</div><div class="v">${escapeHtml(c.name)}</div>
+        <div class="k">Phone</div><div class="v">${escapeHtml(c.phone)}</div>
+        <div class="k">Email</div><div class="v">${escapeHtml(c.email || '—')}</div>
+      </div>
+      <h4 style="margin:14px 0 10px;">Order history</h4>
+      ${orders.length ? `<table class="table"><thead><tr><th>Order</th><th>Date</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody>${orders.map(o => `<tr><td><a href="#" data-order-detail="${o.id}" style="color:var(--admin-accent); font-weight:600;">${o.id}</a></td><td>${new Date(o.createdAt).toLocaleDateString('en-GB')}</td><td>${fmtMoney(o.total)}</td><td><span class="st st-${o.status}">${o.status}</span></td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--admin-muted);">No orders yet.</p>'}
+    `;
+    modal.open({ title: c.name, body, buttons: [{ label: 'Close', variant: 'btn-ghost' }] });
+    modal.bodyEl.querySelectorAll('[data-order-detail]').forEach(a => a.onclick = e => { e.preventDefault(); openOrderDetail(a.dataset.orderDetail); });
+  }
+
+  // Initial admin render
+  Admin.render();
+
+  /* ============================================================
+     FOOTER INFO MODALS  (Shipping / Returns / Contact)
+     ============================================================ */
+  const FOOTER_INFO = {
+    shipping: {
+      title: 'Shipping',
+      body: `
+        <p>We deliver across Pakistan within <strong>2–5 working days</strong>.</p>
+        <h4 style="margin:14px 0 6px;">Rates</h4>
+        <ul style="margin:0; padding-left:18px;">
+          <li>Free shipping on orders over <strong>₨ 3,000</strong></li>
+          <li>Flat rate of <strong>₨ 250</strong> for orders below ₨ 3,000</li>
+        </ul>
+        <h4 style="margin:14px 0 6px;">Carriers</h4>
+        <p>TCS, Leopard, M&P, and Pakistan Post — chosen automatically based on your city.</p>
+        <h4 style="margin:14px 0 6px;">Order tracking</h4>
+        <p>You'll receive a tracking link by SMS and email once your order is dispatched.</p>
+      `
+    },
+    returns: {
+      title: 'Returns &amp; Exchanges',
+      body: `
+        <p>We want you to love your purchase. If something isn't right, you have <strong>7 days</strong> from delivery to return or exchange.</p>
+        <h4 style="margin:14px 0 6px;">Eligibility</h4>
+        <ul style="margin:0; padding-left:18px;">
+          <li>Item must be unworn and unwashed</li>
+          <li>Original tags and packaging intact</li>
+          <li>Proof of purchase (order ID) required</li>
+        </ul>
+        <h4 style="margin:14px 0 6px;">Process</h4>
+        <ol style="margin:0; padding-left:18px;">
+          <li>WhatsApp us at <strong>+92 300 1234567</strong> with your order ID</li>
+          <li>We'll arrange a reverse pickup from your address</li>
+          <li>Refund issued within <strong>3–5 working days</strong> of receipt</li>
+        </ol>
+      `
+    },
+    contact: {
+      title: 'Contact us',
+      body: `
+        <p>We're here Monday – Saturday, 10am to 8pm PKT.</p>
+        <h4 style="margin:14px 0 6px;">Reach us</h4>
+        <ul style="margin:0; padding-left:18px; list-style:none;">
+          <li>📞 <strong>WhatsApp:</strong> +92 300 1234567</li>
+          <li>✉️ <strong>Email:</strong> ${escapeHtml(data.settings.storeEmail || 'hello@atelierpk.pk')}</li>
+          <li>📍 <strong>Studio:</strong> ${escapeHtml(data.settings.address || '12 Mall Road, Lahore')}</li>
+        </ul>
+        <h4 style="margin:14px 0 6px;">Follow</h4>
+        <p>Instagram <strong>@atelierpk</strong> · Facebook <strong>/atelierpk</strong></p>
+      `
+    }
+  };
+  document.addEventListener('click', (e) => {
+    const fl = e.target.closest('[data-footer-link]');
+    if (!fl) return;
+    e.preventDefault();
+    const info = FOOTER_INFO[fl.dataset.footerLink];
+    if (!info) return;
+    modal.open({ title: info.title, body: info.body, buttons: [{ label: 'Close', variant: 'btn-ghost' }] });
+  });
+
+  /* ============================================================
+     POLISH HELPERS
+     ============================================================ */
+
+  // Fade images in once they load
+  function attachImageLoadHandlers(root) {
+    (root || document).querySelectorAll('img').forEach(img => {
+      if (img.complete && img.naturalWidth > 0) {
+        img.classList.add('loaded');
+      } else {
+        img.addEventListener('load',  () => img.classList.add('loaded'), { once: true });
+        img.addEventListener('error', () => img.classList.add('loaded'), { once: true });
+      }
+    });
+  }
+  // Run after each render
+  const _origStoreRender   = Store.render.bind(Store);
+  const _origAdminRender   = Admin.render.bind(Admin);
+  Store.render = function() { _origStoreRender(); attachImageLoadHandlers(Store.el); };
+  Admin.render = function() { _origAdminRender(); attachImageLoadHandlers(Admin.el); };
+  // Initial pass
+  attachImageLoadHandlers(document);
+  // After every view render, re-run
+  on('view:changed', () => setTimeout(() => attachImageLoadHandlers(document), 0));
+
+  // Pulse the revenue stat card on new order (admin only)
+  on('order:placed', (order) => {
+    if (data.view !== 'admin') return;
+    setTimeout(() => {
+      const card = document.querySelector('.stat-card');
+      if (card) { card.classList.add('pulse'); setTimeout(() => card.classList.remove('pulse'), 1200); }
+    }, 50);
+  });
+
+  // Mark the just-placed order row briefly
+  on('order:placed', (order) => {
+    if (data.view !== 'admin') return;
+    setTimeout(() => {
+      const row = document.querySelector(`tr[data-order-id="${order.id}"]`);
+      if (row) { row.classList.add('new-order'); setTimeout(() => row.classList.remove('new-order'), 1200); }
+    }, 80);
+  });
+
+  // Replace the boring "Piece 4 loaded" log
+  console.log('Atelier PK ready. Store, Cart, Admin all wired. Orders:', data.orders.length, '· Products:', data.products.length, '· Customers:', data.customers.length);
+
+  /* ---------- DEV HOOK ---------- */
+  window.atelier = {
+    data, saveData, emit, on, toast, modal, showView,
+    Products, Cart, Store, Orders, Customers, Admin,
+    navigate, navigateAdmin, openOrderDetail, openProductForm, openCustomerDetail,
+    imageOrFallback, makeTile, attachImageLoadHandlers
+  };
+</script>
+</body>
+</html>
